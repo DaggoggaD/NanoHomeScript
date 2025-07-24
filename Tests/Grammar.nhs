@@ -1,0 +1,94 @@
+//COMMENT
+
+//IF, ON DECLARATION, A VALUE IS GIVEN -> AUTOMATIC CASTING.
+//DECLARATIONS
+var declINT = 12;
+var declFLOAT = 12.11;
+var declCHAR = 'a';
+var declSTR = "ANDREA";
+var declARR[] = {1,2,3,4};
+
+//IF, ON DECLARATION, NO VALUE IS GIVEN -> TYPE MUST BE SPECIFIED. !!! var IS USED FOR CLARITY. INTERPRETER WILL ALSO UNDERSTEND "int" ALONE. !!!
+//VAR INSTANCING 
+var:int instINT;
+var:float instFLOAT;
+var:char instCHAR = 'a';
+var:string instSTR = "ANDREA";
+var:array[int] instSTAT_ARR[12];
+
+//OPERATORS
+//standard operators. similar to python (and, or, +, -, *, **, %, /).
+
+//FLOW CONTROL
+if declINT > 16 {					//condition continues till "{"
+	.
+	.
+	.
+}
+else{
+	.
+	.
+	.
+}
+
+//CYCLES
+while declINT != declFLOAT{			//condition continues till "{".
+	.
+	.
+	.
+	declINT++;
+}
+
+foreach var:int element in declARR{ //used only with arrays and strings
+	.
+	.
+	.
+}
+
+
+//OPERATION CASTING
+declINT = declINT*declFLOAT;		//CASTED TO DESTINATION VARIABLE (int*float -> int). !!!WILL PROMPT A WARNING!!!
+declFLOAT = 0.01 * declSTR;			//ERROR (incompatyble types: float = float * string);
+
+
+//ARRAY CONTROLS
+declARR[declINT] = 6;				//assignment.
+declARR.delete(declINT);			//deletes element, array position declINT remains "unassigned".
+declARR.delete_shift(declINT);		//deletes element, array position gets occupied by successor.
+declARR.push(instINT);				//adds element to the last (unassigned) array position.
+declARR.put(instINT, declINT);		//adds instINT to declINT array positon. Previous declINT position element gets shifted to the right by 1.
+declARR.replace(instINT, declINT);	//isnerts instINT to declINT array position, replacing previous declINT position element.
+declARR.sort();						//sorts array: based on value (int/float/char), based on lenght (string, array).
+declARR.sum();						//sums all elements of the array: arithmetic (int, float), concatenate (char [creates a string], string), arithmetic (sum of all elements) (array).
+declARR.len();						//returns array lenght. Can be used also for strings.
+
+//FUNCTIONS
+func (int) sum(var:int a, var:int b){ //defines a function, with return type (int) and arguments.
+	.
+	.
+	.
+}
+func void voidFunc(...){};			//void function. Using return will prompt an ERROR.
+func (int,float,int,string) complexFunc(var:int a, var:float b, var:string c){}
+									//multi return type function.
+return declINT, declFLOAT, 7;		//multi return grammar.
+
+declINT, declFloat, instINT = complexFunc(1,1,"aa");
+									//function output mapping.
+
+complexFunc(7, 1.2, declSTRING);	//multi argument function call.
+
+
+//ADDITIONAL
+import lib;
+import "filepath.nhs";
+define NUMBERS {1,2,3,4}			//acts like a "macro": whenever NUMBERS is present in code, gets replaced with assigned value.
+constant pi 3.14;					//immutable constant
+
+//HOME ASSISTENT, NOTIFICATIONS, CUSTOM CONTROLS
+.
+.
+.
+
+//DEBUG, PRINTING ETC...
+to be later decided. probably similar to python's print().
