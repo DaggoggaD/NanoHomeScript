@@ -12,7 +12,6 @@ int ColIndex = 0;
 int RowIndex = 0;
 
 bool IsString = false;
-bool isNumber = false;
 
 //FUNCTION DECLARATIONS
 void Lexer();

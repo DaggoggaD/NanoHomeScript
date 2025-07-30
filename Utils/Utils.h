@@ -35,8 +35,7 @@ typedef union {
 	char charVal;
 	char* stringVal;
 
-    char operatorVal;
-    char* keywordVal;
+    int OpKwValue;
 } TokenValue;
 
 typedef struct {
@@ -101,6 +100,7 @@ typedef enum {
     KW_STRING,
     KW_CHAR,
 
+    KW_COMMENT,
     KW_COMPARE,
     KW_COMPARE_INV,
     KW_POW,
@@ -118,6 +118,7 @@ typedef struct {
 
 //==================VARIABLES==================
 extern SeparatorType Separators[MAX_CHARS];
+extern char InverseSeparators[MAX_CHARS];
 
 extern KeywordEntry Keywords[];
 

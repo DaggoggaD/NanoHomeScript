@@ -1,6 +1,7 @@
 #include "Utils.h"
 
 SeparatorType Separators[MAX_CHARS];
+char InverseSeparators[MAX_CHARS];
 
 KeywordEntry Keywords[] = {
     {"if", KW_IF},
@@ -23,6 +24,7 @@ KeywordEntry Keywords[] = {
     {"string", KW_STRING},
     {"char", KW_CHAR},
 
+    {"//", KW_COMMENT},
     {"==", KW_COMPARE},
     {"!=", KW_COMPARE_INV},
     {"**", KW_POW},
@@ -76,6 +78,33 @@ void InstantiateSepTable() {
     Separators['<'] = SEP_OP_LESS;
     Separators['>'] = SEP_OP_GREAT;
 }
+
+void InstantiateInverseSepTable() {
+    for (int i = 0; i < MAX_CHARS; i++)
+        InverseSeparators[i] = '_';  // default ignoto
+
+    InverseSeparators[SEP_COMMA] = ',';
+    InverseSeparators[SEP_SEMICOLON] = ';';
+    InverseSeparators[SEP_LPAREN] = '(';
+    InverseSeparators[SEP_RPAREN] = ')';
+    InverseSeparators[SEP_LBRACE] = '{';
+    InverseSeparators[SEP_RBRACE] = '}';
+    InverseSeparators[SEP_LBRACKET] = '[';
+    InverseSeparators[SEP_RBRACKET] = ']';
+    InverseSeparators[SEP_EQUALS] = '=';
+    InverseSeparators[SEP_COLON] = ':';
+    InverseSeparators[SEP_DOT] = '.';
+    InverseSeparators[SEP_SPACE] = ' ';
+    InverseSeparators[SEP_QUOTE] = '\'';
+    InverseSeparators[SEP_DUB_QUOTE] = '"';
+    InverseSeparators[SEP_OP_MULT] = '*';
+    InverseSeparators[SEP_OP_DIV] = '/';
+    InverseSeparators[SEP_OP_ADD] = '+';
+    InverseSeparators[SEP_OP_SUB] = '-';
+    InverseSeparators[SEP_OP_LESS] = '<';
+    InverseSeparators[SEP_OP_GREAT] = '>';
+}
+
 
 void PrintLexError(LexError Error) {
     printf("\033[31mError at (R, L): %d,%d, INFO: %s\033[0m\n", Error.Line, Error.Column, Error.ErrorText);
