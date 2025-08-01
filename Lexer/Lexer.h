@@ -18,6 +18,6 @@ void Lexer();
 
 void ReadNextChar(FILE* ReadFile);
 
-TOKEN* Lex(FILE* ReadFile);
+TokenList* Lex(FILE* ReadFile);
 
 FILE* Shell();

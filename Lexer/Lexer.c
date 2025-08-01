@@ -1,6 +1,7 @@
 #define _CRT_SECURE_NO_WARNINGS
 #include "Lexer.h"
 
+//Shell to input text path file.
 FILE* Shell() {
 	printf("NanoHomeScript. Enter path to .nhs file.\n");
 	printf("NanoHS>");
@@ -11,7 +12,7 @@ FILE* Shell() {
 
 	//For debug purposes
 	if (String[0] == '\0') {
-		strcpy(String, "PRIVATE PATH");
+		strcpy(String, "C:\\Users\\dacco\\source\\repos\\NanoHomeScript\\NanoHomeScript\\Tests\\Test.nhs");
 	}
 
 
@@ -21,6 +22,7 @@ FILE* Shell() {
 	return File;
 }
 
+//Reads next char, updating current, previous and next char. Also increases row and line for debug.
 void ReadNextChar(FILE* ReadFile) {
 	if (ReadFile == NULL) {
 		LexError Err = { RowIndex, ColIndex, "Lex error." };
@@ -46,6 +48,7 @@ void ReadNextChar(FILE* ReadFile) {
 	else ColIndex++;
 }
 
+//Checks if string is a keyword (specified in Keywords)
 bool IsKeyword(char* CurrStr, KeywordType *Type) {
 	for (int i = 0; i < KW_UNKNOWN; i++)
 	{
@@ -57,6 +60,7 @@ bool IsKeyword(char* CurrStr, KeywordType *Type) {
 	return false;
 }
 
+//Checks if string is an INT
 bool IsNumber(char* CurrStr) {
 	while (*CurrStr) {
 		if (*CurrStr < '0' || *CurrStr > '9')
@@ -66,6 +70,7 @@ bool IsNumber(char* CurrStr) {
 	return true;
 }
 
+//Returns token with specified values
 TOKEN GenerateTok(TokenType TokType, TokenValue TokValue, int Line, int Col) {
 	TOKEN Tok;
 	Tok.Type = TokType;
@@ -76,6 +81,7 @@ TOKEN GenerateTok(TokenType TokType, TokenValue TokValue, int Line, int Col) {
 	return Tok;
 }
 
+//Adds the token to the back of the linked list. 
 void AddToken(TOKEN NewTok, TokenList** TokensHead, TokenList** TokensLast) {
 	TokenList* NewEntry = (TokenList*)malloc(sizeof(TokenList));
 	if (NewEntry == NULL) {
@@ -96,12 +102,13 @@ void AddToken(TOKEN NewTok, TokenList** TokensHead, TokenList** TokensLast) {
 	}
 }
 
-TokenValue NumberHandler(char* CurrStr, FILE* ReadFile, TokenType* Type) {
+//Tries to generate a int/float token from string
+TokenValue NumberHandler(char* NumCurrStr, FILE* ReadFile, TokenType* Type) {
 	char numBase[MAX_WORD_LENGHT];
-	strcpy(numBase, CurrStr);
+	strcpy(numBase, NumCurrStr);
 
 	if (CurrentChar == '.') {
-		CurrStr[0] = '\0';
+		NumCurrStr[0] = '\0';
 		CurrStrIndex = 0;
 		ReadNextChar(ReadFile);
 
@@ -110,9 +117,9 @@ TokenValue NumberHandler(char* CurrStr, FILE* ReadFile, TokenType* Type) {
 			CurrStrIndex++;
 			ReadNextChar(ReadFile);
 		}
-		CurrStr[CurrStrIndex] = '\0';
+		NumCurrStr[CurrStrIndex] = '\0';
 
-		if (IsNumber(CurrStr) == false) {
+		if (IsNumber(NumCurrStr) == false) {
 			PrintLexError((LexError) { RowIndex, ColIndex, "ERROR, wrong number format." });
 		}
 
@@ -121,7 +128,7 @@ TokenValue NumberHandler(char* CurrStr, FILE* ReadFile, TokenType* Type) {
 
 		strcat(fullnum, numBase);
 		strcat(fullnum, ".");
-		strcat(fullnum, CurrStr);
+		strcat(fullnum, NumCurrStr);
 		
 		double num = atof(fullnum);
 
@@ -131,7 +138,7 @@ TokenValue NumberHandler(char* CurrStr, FILE* ReadFile, TokenType* Type) {
 		return TVal;
 	}
 
-	int num = atoi(CurrStr);
+	int num = atoi(NumCurrStr);
 
 	TokenValue TVal;
 	TVal.intVal = num;
@@ -140,6 +147,7 @@ TokenValue NumberHandler(char* CurrStr, FILE* ReadFile, TokenType* Type) {
 
 }
 
+//Appends a string token to the list, including everything between the two '"'
 void GenerateStringToken(TokenList** TokensHead, TokenList** TokensLast, FILE* ReadFile) {
 	IsString = true;
 	CurrStr[0] = "\0";
@@ -167,6 +175,7 @@ void GenerateStringToken(TokenList** TokensHead, TokenList** TokensLast, FILE* R
 	CurrStrIndex = 0;
 }
 
+//Appends a keyword token to the list.
 void GenerateKeywordToken(KeywordType KWType, TokenList** TokensHead, TokenList** TokensLast) {
 	TokenValue TVal;
 
@@ -180,6 +189,7 @@ void GenerateKeywordToken(KeywordType KWType, TokenList** TokensHead, TokenList*
 	CurrStrIndex = 0;
 }
 
+//Appends a single (OR MULTI-CHAR) operator to the list. NOTE: **,++ etc are considered 'keywords', but are lexed here.
 void GeneratorSMOperator(TokenList** TokensHead, TokenList** TokensLast, FILE* ReadFile) {
 	KeywordType KWType;
 	char CheckMultiString[] = { CurrentChar, NextChar, '\0' };
@@ -220,6 +230,7 @@ void GeneratorSMOperator(TokenList** TokensHead, TokenList** TokensLast, FILE* R
 	}
 }
 
+//Appends identifier token to the list.
 void GenerateIdentifierToken(TokenList** TokensHead, TokenList** TokensLast, FILE* ReadFile) {
 	TOKEN NewTok;
 	KeywordType KWType;
@@ -247,6 +258,7 @@ void GenerateIdentifierToken(TokenList** TokensHead, TokenList** TokensLast, FIL
 	CurrStrIndex = 0;
 }
 
+//Branches to analyze all different tokens.
 void AnalyzeTokens(TokenList** TokensHead, TokenList** TokensLast, FILE* ReadFile) {
 	KeywordType KWType;
 
@@ -272,7 +284,8 @@ void AnalyzeTokens(TokenList** TokensHead, TokenList** TokensLast, FILE* ReadFil
 	return;
 }
 
-TOKEN* Lex(FILE* ReadFile) {
+//Lexes the complete document. The printfs are for debug only
+TokenList* Lex(FILE* ReadFile) {
 	TokenList* TokensHead = NULL;
 	TokenList* TokensLast = NULL;
 
@@ -281,15 +294,18 @@ TOKEN* Lex(FILE* ReadFile) {
 	}
 
 	//TOKEN DEBUG INFO
-	while (TokensHead != NULL) {
-		if (TokensHead->Tok.Type == OPERATOR) printf("TOKEN: (OPERATOR, %c, line: %d, column: %d)\n", InverseSeparators[TokensHead->Tok.Value.OpKwValue], TokensHead->Tok.Line, TokensHead->Tok.EndColumn);
-		else if (TokensHead->Tok.Type == KEYWORD) printf("TOKEN: (KEYWORD, %s, line: %d, column: %d)\n", Keywords[TokensHead->Tok.Value.OpKwValue].Text, TokensHead->Tok.Line, TokensHead->Tok.EndColumn);
-		else if (TokensHead->Tok.Type == IDENTIFIER) printf("TOKEN: (IDENTIFIER, %s, line: %d, column: %d)\n", TokensHead->Tok.Value.stringVal, TokensHead->Tok.Line, TokensHead->Tok.EndColumn);
-		else if (TokensHead->Tok.Type == STRING) printf("TOKEN: (STRING, %s, line: %d, column: %d)\n", TokensHead->Tok.Value.stringVal, TokensHead->Tok.Line, TokensHead->Tok.EndColumn);
-		else if (TokensHead->Tok.Type == INT) printf("TOKEN: (INT, %d, line: %d, column: %d)\n", TokensHead->Tok.Value.intVal, TokensHead->Tok.Line, TokensHead->Tok.EndColumn);
-		else if (TokensHead->Tok.Type == DOUBLE) printf("TOKEN: (DOUBLE, %lf, line: %d, column: %d)\n", TokensHead->Tok.Value.doubleVal, TokensHead->Tok.Line, TokensHead->Tok.EndColumn);
-		TokensHead = TokensHead->next;
+	TokenList* curr = TokensHead;
+	while (curr != NULL) {
+		if (curr->Tok.Type == OPERATOR) printf("TOKEN: (OPERATOR, %c, line: %d, column: %d)\n", InverseSeparators[curr->Tok.Value.OpKwValue], curr->Tok.Line, curr->Tok.EndColumn);
+		else if (curr->Tok.Type == KEYWORD) printf("TOKEN: (KEYWORD, %s, line: %d, column: %d)\n", Keywords[curr->Tok.Value.OpKwValue].Text, curr->Tok.Line, curr->Tok.EndColumn);
+		else if (curr->Tok.Type == IDENTIFIER) printf("TOKEN: (IDENTIFIER, %s, line: %d, column: %d)\n", curr->Tok.Value.stringVal, curr->Tok.Line, curr->Tok.EndColumn);
+		else if (curr->Tok.Type == STRING) printf("TOKEN: (STRING, %s, line: %d, column: %d)\n", curr->Tok.Value.stringVal, curr->Tok.Line, curr->Tok.EndColumn);
+		else if (curr->Tok.Type == INT) printf("TOKEN: (INT, %d, line: %d, column: %d)\n", curr->Tok.Value.intVal, curr->Tok.Line, curr->Tok.EndColumn);
+		else if (curr->Tok.Type == DOUBLE) printf("TOKEN: (DOUBLE, %lf, line: %d, column: %d)\n", curr->Tok.Value.doubleVal, curr->Tok.Line, curr->Tok.EndColumn);
+		curr = curr->next;
 	}
+
+	return TokensHead;
 }
 
 //Main lexer function. Call to separate input text.
@@ -301,9 +317,5 @@ void Lexer() {
 
 	CurrentChar = fgetc(File);
 	NextChar = fgetc(File);
-	TOKEN* Tokens = Lex(File);
-}
-
-int main() {
-	Lexer();
+	TokensFirst = Lex(File);
 }

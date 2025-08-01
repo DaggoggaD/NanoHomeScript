@@ -1,8 +1,10 @@
 #include "Utils.h"
 
+//Used to check if string is a separator. Inverse is used to get the index from a certain char type
 SeparatorType Separators[MAX_CHARS];
 char InverseSeparators[MAX_CHARS];
 
+//Keywords dict
 KeywordEntry Keywords[] = {
     {"if", KW_IF},
     {"else", KW_ELSE},
@@ -28,23 +30,27 @@ KeywordEntry Keywords[] = {
     {"==", KW_COMPARE},
     {"!=", KW_COMPARE_INV},
     {"**", KW_POW},
+    {">=", KW_GOE},
+    {"<=", KW_LOE},
     {"++", KW_INCREASE},
     {"--", KW_DECREASE},
 
     {NULL, KW_UNKNOWN} // fine della lista
 };
 
+//Reads the user string. Returns 0 if functions completes correctly, -1 otherwise.ù
 int Read_User_String(char* StringBuffer, int MaxLen) {
 	if (fgets(StringBuffer, MaxLen, stdin)) {
 		size_t StringLenght = strlen(StringBuffer);
 		if (StringLenght > 0 && StringBuffer[StringLenght - 1] == '\n') {
 			StringBuffer[StringLenght - 1] = '\0';
+            return 0;
 		}
 		else {
 			StringBuffer[0] = '\0';
 			printf("\033[33mWARNING! String empty or too big.\033[0m\n");
+            return -1;
 		}
-		return 0;
 	}
 	else {
 		printf("\033[31mERROR reading user string.\033[0m\n");
@@ -52,6 +58,7 @@ int Read_User_String(char* StringBuffer, int MaxLen) {
 	}
 }
 
+//Used for fast acces to separator indexes
 void InstantiateSepTable() {
     for (int i = 0; i < MAX_CHARS; i++)
     {
@@ -77,8 +84,10 @@ void InstantiateSepTable() {
     Separators['-'] = SEP_OP_SUB;
     Separators['<'] = SEP_OP_LESS;
     Separators['>'] = SEP_OP_GREAT;
+    Separators['!'] = SEP_OP_NOT;
 }
 
+//Inverse action
 void InstantiateInverseSepTable() {
     for (int i = 0; i < MAX_CHARS; i++)
         InverseSeparators[i] = '_';  // default ignoto
@@ -105,7 +114,21 @@ void InstantiateInverseSepTable() {
     InverseSeparators[SEP_OP_GREAT] = '>';
 }
 
-
+//Simply prints the error
 void PrintLexError(LexError Error) {
     printf("\033[31mError at (R, L): %d,%d, INFO: %s\033[0m\n", Error.Line, Error.Column, Error.ErrorText);
+}
+
+void PrintToken(TOKEN Tok) {
+    if (Tok.Type == OPERATOR) printf("TOKEN: (OPERATOR, %c, line: %d, column: %d)\n", InverseSeparators[Tok.Value.OpKwValue], Tok.Line, Tok.EndColumn);
+    else if (Tok.Type == KEYWORD) printf("TOKEN: (KEYWORD, %s, line: %d, column: %d)\n", Keywords[Tok.Value.OpKwValue].Text, Tok.Line, Tok.EndColumn);
+    else if (Tok.Type == IDENTIFIER) printf("TOKEN: (IDENTIFIER, %s, line: %d, column: %d)\n", Tok.Value.stringVal, Tok.Line, Tok.EndColumn);
+    else if (Tok.Type == STRING) printf("TOKEN: (STRING, %s, line: %d, column: %d)\n", Tok.Value.stringVal, Tok.Line, Tok.EndColumn);
+    else if (Tok.Type == INT) printf("TOKEN: (INT, %d, line: %d, column: %d)\n", Tok.Value.intVal, Tok.Line, Tok.EndColumn);
+    else if (Tok.Type == DOUBLE) printf("TOKEN: (DOUBLE, %lf, line: %d, column: %d)\n", Tok.Value.doubleVal, Tok.Line, Tok.EndColumn);
+}
+
+int main() {
+    Lexer();
+    Parse();
 }

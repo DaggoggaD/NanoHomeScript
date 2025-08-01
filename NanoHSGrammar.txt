@@ -1,0 +1,15 @@
+Expr       = BinExpr ;
+
+BinExpr    = Term , { ( "+" | "-" | "<" | ">" | "<=" | ">=" | "==" | "!=" ) , Term } ;
+
+Term       = Factor , { ( "*" | "/" ) , Factor } ;
+
+Factor     = [ ( "-" | "!" ) ] , Node ;
+
+Node    = NUMBER
+           | STRING
+           | BOOL
+           | NULL
+           | IDENTIFIER
+	   | IDENTIFIER , [ "(" , [ Expr , { "," , Expr } ] , ")" ]
+           | "(" , Expr , ")" ;
