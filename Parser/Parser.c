@@ -33,6 +33,19 @@ const char* factor_op_to_str(FactorType f) {
 	}
 }
 
+static const char* decl_var_type_to_str(DeclarationVariableType t) {
+	switch (t) {
+	case VARIABLE_INT:     return "int";
+	case VARIABLE_DOUBLE:  return "double";
+	case VARIABLE_STRING:  return "string";
+	case VARIABLE_BOOL:    return "bool";
+	case VARIABLE_CUSTOM:  return "custom";
+	case VARIABLE_AUTO:    return "auto";
+	case VARIABLE_NONE:    return "none";
+	default:               return "unknown";
+	}
+}
+
 // Forward
 void print_expression(Expression* expr);
 
@@ -123,6 +136,33 @@ void print_binary_expr(BinaryExpression* bin) {
 	printf(")");
 }
 
+void print_decl_expr(DeclarationExpression* d) {
+	printf("(");
+	if (!d) {
+		printf("<null decl>");
+		return;
+	}
+
+	// keyword
+	printf("VAR ");
+
+	// wide: include tipo esplicito
+	if (d->ExprType == DECLARATION_WIDE) {
+		printf("%s", decl_var_type_to_str(d->VarType));
+	}
+
+	// spazio e nome
+	printf(" ");
+	print_expression(d->VarName);
+
+	// initializer se presente
+	if (d->Value) {
+		printf(", ");
+		print_expression(d->Value);
+	}
+	printf(")");
+}
+
 void print_expression(Expression* expr) {
 	if (!expr) {
 		printf("<null expr>");
@@ -142,12 +182,28 @@ void print_expression(Expression* expr) {
 	case EXPRESSION_BINARY:
 		print_binary_expr(expr->Value.BinExpr);
 		break;
+	case EXPRESSION_DECLARATION:
+		print_decl_expr(expr->Value.DeclExpr);
+		break;
 	default:
 		printf("<unknown expr kind>");
 	}
 }
 
 //END OF PRINTING METHODS
+
+DeclarationVariableType GetTokenDeclType() {
+	switch (CurrToken.Value.OpKwValue)
+	{
+	case KW_INT: return VARIABLE_INT;
+	case KW_DOUBLE: return VARIABLE_DOUBLE;
+	case KW_STRING: return VARIABLE_STRING;
+	//case KWBOOL: return VARIABLE_BOOL;
+	default:
+		break;
+	}
+	return VARIABLE_NONE;
+}
 
 
 BinaryExpressionType GetBinaryExpressionType(TOKEN* Tok) {
@@ -160,7 +216,6 @@ BinaryExpressionType GetBinaryExpressionType(TOKEN* Tok) {
 		case SEP_OP_SUB: return BINARY_SUB;
 		case SEP_OP_LESS: return BINARY_LESS;
 		case SEP_OP_GREAT: return BINARY_GREATER;
-		case SEP_EQUALS: return BINARY_ASSIGN;
 		default: break;
 		}
 	}
@@ -181,8 +236,6 @@ void Advance() {
 	CurrToken = NextToken;
 	if (TokensFirst->next == NULL) return; //ADD ERROR PATTERNS
 	
-
-
 	TokensFirst = TokensFirst->next;
 	if (TokensFirst->next == NULL) {
 		ParserEndOfTokens = true;
@@ -192,13 +245,20 @@ void Advance() {
 
 Expression* MakeTokenNode(NodeType Type, TOKEN Tok) {
 	Node* CurrNode = malloc(sizeof(Node));
-	if (CurrNode == NULL) return NULL; //ADD ERROR PATTERNS
+	if (CurrNode == NULL) {
+		PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in MakeTokenNode: CurrNode malloc failed." });
+		return NULL;
+	}
 
 	CurrNode->Type = Type;
 	CurrNode->Value.Tok = Tok;
 
 	Expression* CurrExpr = malloc(sizeof(Expression));
-	if (CurrExpr == NULL) return NULL; //ADD ERROR PATTERNS (and free node)
+	if (CurrExpr == NULL) {
+		PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in MakeTokenNode: CurrExpr malloc failed." });
+		free(CurrNode);
+		return NULL;
+	}
 	CurrExpr->Type = EXPRESSION_NODE;
 	CurrExpr->Value.NodeExpr = CurrNode;
 
@@ -208,13 +268,20 @@ Expression* MakeTokenNode(NodeType Type, TOKEN Tok) {
 //Could be included in maletokenNode, for clarity for now included here.
 Expression* MakeGroupedNode(NodeType Type, Expression* Expr) {
 	Node* CurrNode = malloc(sizeof(Node));
-	if (CurrNode == NULL) return NULL; //ADD ERROR PATTERNS
-
+	if (CurrNode == NULL) {
+		PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in MakeGroupedNode: CurrNode malloc failed." });
+		return NULL;
+	}
 	CurrNode->Type = Type;
 	CurrNode->Value.NodeGrouping = Expr;
 
 	Expression* CurrExpr = malloc(sizeof(Expression));
-	if (CurrExpr == NULL) return NULL; //ADD ERROR PATTERNS (and free node)
+	if (CurrExpr == NULL) {
+		PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in MakeGroupedNode: CurrExpr malloc failed." });
+		free(CurrNode);
+		return NULL;
+	}
+
 	CurrExpr->Type = EXPRESSION_NODE;
 	CurrExpr->Value.NodeExpr = CurrNode;
 
@@ -223,13 +290,20 @@ Expression* MakeGroupedNode(NodeType Type, Expression* Expr) {
 
 Expression* MakeFactor(FactorType Type, Expression* Left){
 	Factor* CurrFactor = malloc(sizeof(Factor));
-	if (CurrFactor == NULL) return NULL; //ADD ERROR PATTERNS
+	if (CurrFactor == NULL) {
+		PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in MakeFactor: CurrNode malloc failed." });
+		return NULL; 
+	}
 
 	CurrFactor->Type = Type;
 	CurrFactor->Value = Left;
 
 	Expression* CurrExpr = malloc(sizeof(Expression));
-	if (CurrExpr == NULL) return NULL; //ADD ERROR PATTERNS
+	if (CurrExpr == NULL) {
+		free(CurrFactor);
+		PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in MakeTokenNode: CurrExpr malloc failed." });
+		return NULL;
+	}
 	CurrExpr->Type = EXPRESSION_FACTOR;
 	CurrExpr->Value.FactorExpr = CurrFactor;
 
@@ -239,14 +313,20 @@ Expression* MakeFactor(FactorType Type, Expression* Left){
 Expression* MakeTerm(TermType Type, Expression* Left, Expression* Right) {
 
 	Term* CurrTerm = malloc(sizeof(Term));
-	if (CurrTerm == NULL) return NULL;
-
+	if (CurrTerm == NULL) {
+		PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in MakeTerm: CurrNode malloc failed." });
+		return NULL;
+	}
 	CurrTerm->Type = Type;
 	CurrTerm->Left = Left;
 	CurrTerm->Right = Right;
 
 	Expression* CurrExpr = malloc(sizeof(Expression));
-	if (CurrExpr == NULL) return NULL; //ADD ERROR PATTERNS
+	if (CurrExpr == NULL) {
+		free(CurrTerm);
+		PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in MakeTerm: CurrExpr malloc failed." });
+		return NULL; //ADD ERROR PATTERNS
+	}
 	CurrExpr->Type = EXPRESSION_TERM;
 	CurrExpr->Value.TermExpr = CurrTerm;
 
@@ -256,18 +336,48 @@ Expression* MakeTerm(TermType Type, Expression* Left, Expression* Right) {
 
 Expression* MakeBinExpr(BinaryExpressionType Type, Expression* Left, Expression* Right) {
 	BinaryExpression* CurrBinExpression = malloc(sizeof(BinaryExpression));
-	if (CurrBinExpression == NULL) return NULL;
-
+	if (CurrBinExpression == NULL) {
+		PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in MakeBinExpr: CurrNode malloc failed." });
+		return NULL;
+	}
 	CurrBinExpression->Type = Type;
 	CurrBinExpression->Left = Left;
 	CurrBinExpression->Right = Right;
 
 	Expression* CurrExpr = malloc(sizeof(Expression));
-	if (CurrExpr == NULL) return NULL; //ADD ERROR PATTERNS
-	CurrExpr->Type = EXPRESSION_BINARY;
+	if (CurrExpr == NULL) {
+		free(CurrBinExpression);
+		PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in MakeTokenNode: CurrExpr malloc failed." });
+		return NULL; //ADD ERROR PATTERNS
+	}CurrExpr->Type = EXPRESSION_BINARY;
 	CurrExpr->Value.BinExpr = CurrBinExpression;
 
 	return CurrExpr;
+}
+
+Expression* MakeDeclExpr(DeclarationExpressionType ExprType, DeclarationVariableType VarType, Expression* VarName, Expression* Value) {
+	DeclarationExpression* CurrDeclExpression = malloc(sizeof(DeclarationExpression));
+	if (CurrDeclExpression == NULL) {
+		PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in MakeDeclExpr: CurrDeclExpression malloc failed." });
+		return NULL;
+	}
+
+	CurrDeclExpression->ExprType = ExprType;
+	CurrDeclExpression->VarType = VarType;
+	CurrDeclExpression->VarName = VarName;
+	CurrDeclExpression->Value = Value;
+
+	Expression* CurrExpr = malloc(sizeof(Expression));
+	if (CurrExpr == NULL) {
+		free(CurrDeclExpression);
+		PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in MakeDeclExpr: CurrExpr malloc failed." });
+		return NULL; //ADD ERROR PATTERNS
+	}
+	CurrExpr->Type = EXPRESSION_DECLARATION;
+	CurrExpr->Value.DeclExpr = CurrDeclExpression;
+
+	return CurrExpr;
+
 }
 
 
@@ -279,15 +389,39 @@ Expression* NodeParse() {
 		Advance();
 		return NumNode;
 	}
+
+	else if (CurrToken.Type == STRING) {
+		Expression* StringNode = MakeTokenNode(NODE_STRING, CurrToken);
+		Advance();
+		return StringNode;
+	}
+
+	else if (CurrToken.Type == IDENTIFIER) {
+		TOKEN NameToken = CurrToken;
+		Advance();
+
+		//Function Call
+		if (CurrToken.Value.OpKwValue == SEP_LPAREN) {
+			Advance();
+			return NULL; //TO BE LATER IMPLEMENTED
+		}
+
+		return MakeTokenNode(NODE_IDENTIFIER, NameToken);
+	}
+
 	else if (CurrToken.Value.OpKwValue == SEP_LPAREN) {
 		Advance();
 		Expression* Grouped = BinExprParse(); //CHANGE THIS TO PARSE, WHEN FUNCTION IS COMPLETE
 
-		if (CurrToken.Value.OpKwValue != SEP_RPAREN) return NULL; //ADD ERROR PATTERNS
-
+		if (CurrToken.Value.OpKwValue != SEP_RPAREN) {
+			PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in NodeParse: Missing closing parenthesis." });
+			return NULL; //ADD ERROR PATTERNS
+		}
 		Advance();
 		return MakeGroupedNode(NODE_GROUPING, Grouped);
 	}
+
+	PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in NodeParse: Token/Series of Tokens isn't a NODE. Null return." });
 	return NULL;
 }
 
@@ -315,22 +449,16 @@ Expression* TermParse() {
 		else Type = TERM_DIVISION;
 
 		Advance();
-
 		Expression* Right = FactorParse();
-
-
-
 		Left = MakeTerm(Type, Left, Right);
-
 	}
 	return Left;
 }
 
 Expression* BinExprParse() {
 	Expression* Left = TermParse();
-	
 	BinaryExpressionType Type = GetBinaryExpressionType(&CurrToken);
-
+	
 	while (Type != BINARY_NONE) {
 		Advance();
 
@@ -343,12 +471,74 @@ Expression* BinExprParse() {
 	return Left;
 }
 
+Expression* WideDeclExprParse() {
+	Advance();
+	DeclarationVariableType Type;
+
+	if (CurrToken.Type == KEYWORD) {
+		Type = GetTokenDeclType();
+	}
+	else if (CurrToken.Type == IDENTIFIER) {
+		Type = VARIABLE_CUSTOM;
+	}
+	else {
+		PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in DeclExprParse: Declaration TYPE not recognized." });
+		return NULL;
+	}
+
+	Advance();
+	Expression* VarName = ExpressionParse();
+
+	if (CurrToken.Value.OpKwValue != SEP_EQUALS) {
+		PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in DeclExprParse: Missing '='." });
+		return NULL;
+	}
+
+	Advance();
+
+	Expression* Value = ExpressionParse();
+
+	return MakeDeclExpr(DECLARATION_WIDE, Type, VarName, Value);
+}
+
+Expression* DeclExprParse() {
+	Advance();
+
+	if (CurrToken.Value.OpKwValue == SEP_COLON) {
+		return WideDeclExprParse();
+	}
+
+	//To be implemented
+	//return ShortDeclExprParse();
+
+}
+
+Expression* ExpressionParse() {
+	//Start simple: add expceptions, like array[index] = 12; (wich is not identifier = expression;).
+	//Handle Keyword starting expressions.
+	if (CurrToken.Type == KEYWORD) {
+
+		switch (CurrToken.Value.OpKwValue) {
+		case KW_VAR:
+			return DeclExprParse();
+			break;
+		//Other cases...
+		default:
+			break;
+		}
+
+	}
+
+
+	return BinExprParse();
+}
+
 void Parse() {
 	CurrToken = TokensFirst->Tok;
 	if (TokensFirst != NULL) NextToken = TokensFirst->next->Tok;
 
 	while (ParserEndOfTokens==false) {
-		Expression* CurrExpr = BinExprParse();
+		Expression* CurrExpr = ExpressionParse();
 		print_expression(CurrExpr);
 		printf("\n");
 
@@ -356,6 +546,7 @@ void Parse() {
 			Advance();
 		}
 		else if(CurrExpr==NULL) {
+			PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in expression: Null return. Check function." });
 			Advance();
 		}
 	}

@@ -69,6 +69,7 @@ typedef struct S_Term {
 
 typedef enum {
 	EXPRESSION_BINARY,
+	EXPRESSION_DECLARATION,
 	EXPRESSION_TERM,
 	EXPRESSION_FACTOR,
 	EXPRESSION_NODE
@@ -94,10 +95,35 @@ typedef struct S_BinExpr {
 	struct Expression* Right;
 } BinaryExpression;
 
+
+typedef enum {
+	DECLARATION_SIMPLE,
+	DECLARATION_WIDE
+} DeclarationExpressionType;
+
+typedef enum {
+	VARIABLE_INT,
+	VARIABLE_DOUBLE,
+	VARIABLE_STRING,
+	VARIABLE_BOOL,
+	VARIABLE_CUSTOM,
+	VARIABLE_AUTO,
+	VARIABLE_NONE
+} DeclarationVariableType;
+
+typedef struct S_DeclExpr {
+	DeclarationExpressionType ExprType;
+	DeclarationVariableType VarType;
+	struct Expression* VarName;
+	struct Expression* Value;
+
+} DeclarationExpression;
+
 //#####Expression main struct#####
 
 typedef union {
 	BinaryExpression* BinExpr;
+	DeclarationExpression* DeclExpr;
 	Term* TermExpr;
 	Factor* FactorExpr;
 	Node* NodeExpr;
@@ -117,3 +143,5 @@ typedef struct S_ExpressionList {
 void Parse();
 
 Expression* BinExprParse();
+
+Expression* ExpressionParse();

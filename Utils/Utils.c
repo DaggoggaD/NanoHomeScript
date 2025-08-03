@@ -25,6 +25,7 @@ KeywordEntry Keywords[] = {
     {"double", KW_DOUBLE},
     {"string", KW_STRING},
     {"char", KW_CHAR},
+    {"array", KW_ARRAY}, //Can be splitted in arrayInt, arrayFloat... Not suggested -> array[struct] wont be possible. stick with dinamic.
 
     {"//", KW_COMMENT},
     {"==", KW_COMPARE},
@@ -115,8 +116,13 @@ void InstantiateInverseSepTable() {
 }
 
 //Simply prints the error
-void PrintLexError(LexError Error) {
+void PrintGrammarError(GrammarError Error) {
     printf("\033[31mError at (R, L): %d,%d, INFO: %s\033[0m\n", Error.Line, Error.Column, Error.ErrorText);
+    exit(1);
+}
+
+void PrintGrammarWarning(GrammarError Error) {
+    printf("\033[33mError at (R, L): %d,%d, INFO: %s\033[0m\n", Error.Line, Error.Column, Error.ErrorText);
 }
 
 void PrintToken(TOKEN Tok) {
@@ -131,4 +137,6 @@ void PrintToken(TOKEN Tok) {
 int main() {
     Lexer();
     Parse();
+    char c = _getch();
+    return 0;
 }

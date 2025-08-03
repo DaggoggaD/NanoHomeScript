@@ -14,8 +14,7 @@ typedef struct {
     int Column;
 
     char* ErrorText;
-} LexError;
-
+} GrammarError;
 
 //==================TOKEN TYPES, VALUES AND STRUCTS==================
 
@@ -101,6 +100,7 @@ typedef enum {
     KW_DOUBLE,
     KW_STRING,
     KW_CHAR,
+    KW_ARRAY,
 
     KW_COMMENT,
     KW_COMPARE,
@@ -132,6 +132,8 @@ int Read_User_String(char* StringBuffer, int MaxLen);
 
 void InstantiateSepTable();
 
-void PrintLexError(LexError Error);
+void PrintGrammarError(GrammarError Error);
+void PrintGrammarWarning(GrammarError Error);
+
 
 void PrintToken(TOKEN Tok);

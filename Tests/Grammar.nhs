@@ -18,7 +18,7 @@ var:int instINT;
 var:float instFLOAT;
 var:char instCHAR = 'a';
 var:string instSTR = "ANDREA";
-var:array[int] instSTAT_ARR[12];
+var:array instSTAT_ARR[12];
 
 //OPERATORS//
 //standard operators. similar to python (and, or, +, -, *, **, %, /).//

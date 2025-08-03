@@ -25,8 +25,8 @@ FILE* Shell() {
 //Reads next char, updating current, previous and next char. Also increases row and line for debug.
 void ReadNextChar(FILE* ReadFile) {
 	if (ReadFile == NULL) {
-		LexError Err = { RowIndex, ColIndex, "Lex error." };
-		PrintLexError(Err);
+		GrammarError Err = { RowIndex, ColIndex, "Lex error." };
+		PrintGrammarError(Err);
 		return;
 	}
 
@@ -85,7 +85,7 @@ TOKEN GenerateTok(TokenType TokType, TokenValue TokValue, int Line, int Col) {
 void AddToken(TOKEN NewTok, TokenList** TokensHead, TokenList** TokensLast) {
 	TokenList* NewEntry = (TokenList*)malloc(sizeof(TokenList));
 	if (NewEntry == NULL) {
-		PrintLexError((LexError) { RowIndex, ColIndex, "ERROR on malloc of new Token entry." });
+		PrintGrammarError((GrammarError) { RowIndex, ColIndex, "ERROR on malloc of new Token entry." });
 		return;
 	}
 
@@ -120,7 +120,7 @@ TokenValue NumberHandler(char* NumCurrStr, FILE* ReadFile, TokenType* Type) {
 		NumCurrStr[CurrStrIndex] = '\0';
 
 		if (IsNumber(NumCurrStr) == false) {
-			PrintLexError((LexError) { RowIndex, ColIndex, "ERROR, wrong number format." });
+			PrintGrammarError((GrammarError) { RowIndex, ColIndex, "ERROR, wrong number format." });
 		}
 
 		char fullnum[MAX_WORD_LENGHT + MAX_WORD_LENGHT + 2];
@@ -226,7 +226,7 @@ void GeneratorSMOperator(TokenList** TokensHead, TokenList** TokensLast, FILE* R
 		ReadNextChar(ReadFile);
 	}
 	else {
-		PrintLexError((LexError) { RowIndex, ColIndex, "ERROR in operator recognizment." });
+		PrintGrammarError((GrammarError) { RowIndex, ColIndex, "ERROR in operator recognizment." });
 	}
 }
 
@@ -244,7 +244,7 @@ void GenerateIdentifierToken(TokenList** TokensHead, TokenList** TokensLast, FIL
 		TokenValue TVal;
 		TVal.stringVal = malloc(strlen(CurrStr) + 1);
 		if (TVal.stringVal == NULL) {
-			PrintLexError((LexError) { RowIndex, ColIndex, "ERROR assigning identifier string malloc." });
+			PrintGrammarError((GrammarError) { RowIndex, ColIndex, "ERROR assigning identifier string malloc." });
 			return;
 		}
 
