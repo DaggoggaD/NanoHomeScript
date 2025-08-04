@@ -17,4 +17,17 @@
 (1 + 2) * (3 - 4) / 5;
 -(3 + 4) * 2;
 !(1 == 0);
-var:int Andrea = (1 + 2) * (3 - 4) / 5;
+var:int testing;
+var:int Operation = (1 + 2) * (3 - 4) / 5;
+var:string StringTest = "banane";
+var:double DoubleTest = 12.5;
+var:struttura CustomTest = set;
+
+var:int sum;
+
+var:int value = 4;
+var value = 4;
+
+
+var AutoTest = 12.5;
+testin = 3+2;

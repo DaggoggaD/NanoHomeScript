@@ -10,7 +10,7 @@ var declINT = 12;
 var declFLOAT = 12.11;
 var declCHAR = 'a';
 var declSTR = "ANDREA si chiama ANDREA DACCO 123456789!<>?=!/*+-";
-var declARR[] = {1,2,3,4};
+var declARR = {1,2,3,4};
 
 //IF, ON DECLARATION, NO VALUE IS GIVEN -> TYPE MUST BE SPECIFIED. !!! var IS USED FOR CLARITY. INTERPRETER WILL ALSO UNDERSTEND "int" ALONE. !!!//
 //VAR INSTANCING //
@@ -18,7 +18,7 @@ var:int instINT;
 var:float instFLOAT;
 var:char instCHAR = 'a';
 var:string instSTR = "ANDREA";
-var:array instSTAT_ARR[12];
+var:array instSTAT_ARR;
 
 //OPERATORS//
 //standard operators. similar to python (and, or, +, -, *, **, %, /).//

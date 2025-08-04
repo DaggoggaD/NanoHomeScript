@@ -58,9 +58,8 @@ void print_node(Node* node) {
 
 	switch (node->Type) {
 	case NODE_NUMBER:
-		// Supponendo che il token contenga un campo numerico; adattalo:
-		// se usi int e double separati, scegli in base a CurrToken.Type
-		printf("%d", node->Value.Tok.Value.intVal); // o .intVal se intero
+		if(node->Value.Tok.Type == INT) printf("%d", node->Value.Tok.Value.intVal);
+		else printf("%lf", node->Value.Tok.Value.doubleVal);
 		break;
 	case NODE_STRING:
 		printf("\"%s\"", node->Value.Tok.Value.stringVal);
@@ -147,13 +146,15 @@ void print_decl_expr(DeclarationExpression* d) {
 	printf("VAR ");
 
 	// wide: include tipo esplicito
-	if (d->ExprType == DECLARATION_WIDE) {
+	if (d->ExprType == DECLARATION_WITH_TYPE) {
 		printf("%s", decl_var_type_to_str(d->VarType));
 	}
+	else printf("AUTO");
 
 	// spazio e nome
 	printf(" ");
-	print_expression(d->VarName);
+	printf("%s", d->VarName.Value.stringVal);
+
 
 	// initializer se presente
 	if (d->Value) {
@@ -163,12 +164,37 @@ void print_decl_expr(DeclarationExpression* d) {
 	printf(")");
 }
 
+void print_assignment_expr(AssignmentExpression* a) {
+	printf("(ASSIGN ");
+	if (!a) {
+		printf("<null assignment>");
+		return;
+	}
+
+	// LHS: nome variabile (assumiamo IDENTIFIER)
+	if (a->VarName.Type == IDENTIFIER) {
+		printf("%s, ", a->VarName.Value.stringVal);
+	}
+	else {
+		// fallback generico se vuoi più diagnosi
+		printf("<non-ident asgn target>");
+	}
+
+	// RHS
+	if (a->Value) {
+		print_expression(a->Value);
+	}
+	else {
+		printf("<null value>");
+	}
+	printf(")");
+}
+
 void print_expression(Expression* expr) {
 	if (!expr) {
 		printf("<null expr>");
 		return;
 	}
-
 	switch (expr->Type) {
 	case EXPRESSION_NODE:
 		print_node(expr->Value.NodeExpr);
@@ -184,6 +210,9 @@ void print_expression(Expression* expr) {
 		break;
 	case EXPRESSION_DECLARATION:
 		print_decl_expr(expr->Value.DeclExpr);
+		break;
+	case EXPRESSION_ASSIGNMENT:
+		print_assignment_expr(expr->Value.AssignExpr);
 		break;
 	default:
 		printf("<unknown expr kind>");
@@ -355,7 +384,7 @@ Expression* MakeBinExpr(BinaryExpressionType Type, Expression* Left, Expression*
 	return CurrExpr;
 }
 
-Expression* MakeDeclExpr(DeclarationExpressionType ExprType, DeclarationVariableType VarType, Expression* VarName, Expression* Value) {
+Expression* MakeDeclExpr(DeclarationExpressionType ExprType, DeclarationVariableType VarType, TOKEN VarName, Expression* Value) {
 	DeclarationExpression* CurrDeclExpression = malloc(sizeof(DeclarationExpression));
 	if (CurrDeclExpression == NULL) {
 		PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in MakeDeclExpr: CurrDeclExpression malloc failed." });
@@ -380,6 +409,27 @@ Expression* MakeDeclExpr(DeclarationExpressionType ExprType, DeclarationVariable
 
 }
 
+Expression* MakeVarAssignment(TOKEN VarName, Expression* Value) {
+	AssignmentExpression* CurrAssignExpression = malloc(sizeof(AssignmentExpression));
+	if (CurrAssignExpression == NULL) {
+		PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in MakeVarAssignment: CurrAssignExpression malloc failed." });
+		return NULL;
+	}
+
+	CurrAssignExpression->VarName = VarName;
+	CurrAssignExpression->Value = Value;
+
+	Expression* CurrExpr = malloc(sizeof(Expression));
+	if (CurrExpr == NULL) {
+		free(CurrAssignExpression);
+		PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in MakeVarAssignment: CurrExpr malloc failed." });
+		return NULL; //ADD ERROR PATTERNS
+	}
+	CurrExpr->Type = EXPRESSION_ASSIGNMENT;
+	CurrExpr->Value.AssignExpr = CurrAssignExpression;
+
+	return CurrExpr;
+}
 
 Expression* NodeParse() {
 	//CONVERT TO SWITCH
@@ -471,7 +521,7 @@ Expression* BinExprParse() {
 	return Left;
 }
 
-Expression* WideDeclExprParse() {
+Expression* DeclTypeExprParse() {
 	Advance();
 	DeclarationVariableType Type;
 
@@ -482,42 +532,75 @@ Expression* WideDeclExprParse() {
 		Type = VARIABLE_CUSTOM;
 	}
 	else {
-		PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in DeclExprParse: Declaration TYPE not recognized." });
+		PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in DeclTypeExprParse: Declaration TYPE not recognized." });
 		return NULL;
 	}
 
 	Advance();
-	Expression* VarName = ExpressionParse();
+	TOKEN VarName = CurrToken;
+	Advance();
 
 	if (CurrToken.Value.OpKwValue != SEP_EQUALS) {
-		PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in DeclExprParse: Missing '='." });
-		return NULL;
+		if(CurrToken.Value.OpKwValue != SEP_SEMICOLON) PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in DeclTypeExprParse: Missing ';'." });
+		return MakeDeclExpr(DECLARATION_WITH_TYPE, Type, VarName, NULL);
 	}
 
 	Advance();
 
 	Expression* Value = ExpressionParse();
 
-	return MakeDeclExpr(DECLARATION_WIDE, Type, VarName, Value);
+	return MakeDeclExpr(DECLARATION_WITH_TYPE, Type, VarName, Value);
+}
+
+Expression* DeclAutoExprParse() {
+	TOKEN VarName = CurrToken;
+	Advance();
+
+	if (CurrToken.Value.OpKwValue != SEP_EQUALS) {
+		PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in DeclAutoExprParse: Automatic type casting requires immediate assignment" });
+	}
+
+	Advance();
+
+	Expression* Value = ExpressionParse();
+
+	return MakeDeclExpr(DECLARATION_AUTO, VARIABLE_AUTO, VarName, Value);
+
+	return NULL;
 }
 
 Expression* DeclExprParse() {
 	Advance();
-
 	if (CurrToken.Value.OpKwValue == SEP_COLON) {
-		return WideDeclExprParse();
+		return DeclTypeExprParse();
 	}
-
-	//To be implemented
-	//return ShortDeclExprParse();
-
+	return DeclAutoExprParse();
 }
 
+//Change VarName back to an expression, and build LValueParse, to parse the left side of an expression, so that you can both use identifier and array access at the same time
+//wich means you need to implement NODE_INDEX (array node access).
+Expression* VarAssignmentParse() {
+	TOKEN VarName = CurrToken;
+	Advance();
+	Advance();
+
+	Expression* Value = ExpressionParse();
+	if(Value == NULL) PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in VarAssignmentParse: Missing value expression" });
+	return MakeVarAssignment(VarName, Value);
+}
+
+//REMEMBER: ARRAYS, FUNCTION CALLS, ETC NEED TO BE IMPLEMENTED LATER. 
+//That said: now, var:array name; and var name = {....} are fully dinamic.
+//Array assignments, so name[expression] = ... are handled here (in the elif)
+//Meanwhile, in situations like x = nameArray[expression], nameArray[expression] is a node: see grammar.
+//Same for function calls: if you find nameCALL(...) without an output assignment, it'll also be handled in the elif.
+//Again, if you instead find it in x = nameCALL(...) it'll be a node.
+//Call() in a node is already initialized in NodeParse (only the main branch. there is nothing implemented yet). Arrays still needs to be implemented.
+//Clear this comment when completed.
 Expression* ExpressionParse() {
 	//Start simple: add expceptions, like array[index] = 12; (wich is not identifier = expression;).
 	//Handle Keyword starting expressions.
 	if (CurrToken.Type == KEYWORD) {
-
 		switch (CurrToken.Value.OpKwValue) {
 		case KW_VAR:
 			return DeclExprParse();
@@ -526,9 +609,23 @@ Expression* ExpressionParse() {
 		default:
 			break;
 		}
-
 	}
+	//Split this in, for example, IDENTIFIER "[" expr "]"... or IDENTIFIER "=" ... 
+	else if (CurrToken.Type == IDENTIFIER) {
+		//Put these in a switch if they become too many
+		switch (NextToken.Value.OpKwValue)
+		{
+		case SEP_EQUALS: 
+			return VarAssignmentParse(); 
+			break;
+		case SEP_LBRACKET: 
+			break;
 
+
+		default:
+			break;
+		}
+	}
 
 	return BinExprParse();
 }

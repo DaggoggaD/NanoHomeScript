@@ -70,6 +70,7 @@ typedef struct S_Term {
 typedef enum {
 	EXPRESSION_BINARY,
 	EXPRESSION_DECLARATION,
+	EXPRESSION_ASSIGNMENT,
 	EXPRESSION_TERM,
 	EXPRESSION_FACTOR,
 	EXPRESSION_NODE
@@ -97,8 +98,8 @@ typedef struct S_BinExpr {
 
 
 typedef enum {
-	DECLARATION_SIMPLE,
-	DECLARATION_WIDE
+	DECLARATION_AUTO,
+	DECLARATION_WITH_TYPE
 } DeclarationExpressionType;
 
 typedef enum {
@@ -114,16 +115,22 @@ typedef enum {
 typedef struct S_DeclExpr {
 	DeclarationExpressionType ExprType;
 	DeclarationVariableType VarType;
-	struct Expression* VarName;
+	TOKEN VarName;
 	struct Expression* Value;
 
 } DeclarationExpression;
+
+typedef struct S_AssignmentExpression {
+	TOKEN VarName;
+	struct Expression* Value;
+} AssignmentExpression;
 
 //#####Expression main struct#####
 
 typedef union {
 	BinaryExpression* BinExpr;
 	DeclarationExpression* DeclExpr;
+	AssignmentExpression* AssignExpr;
 	Term* TermExpr;
 	Factor* FactorExpr;
 	Node* NodeExpr;

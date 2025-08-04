@@ -1,5 +1,7 @@
 Expr       = BinExpr | DeclExpr;
 
+VarAssignm = IDENTIFIER, "=", Expr ; | IDENTIFIER, "[", Expr, "]", "=", Expr ;
+
 DeclExpr   = "var", [ ":", int], IDENTIFIER, [ "=", Expression] ; 
 
 BinExpr    = Term , { ( "+" | "-" | "<" | ">" | "<=" | ">=" | "==" | "!=" ) , Term } ;
@@ -13,5 +15,6 @@ Node    = NUMBER
            | BOOL
            | NULL
            | IDENTIFIER
+           | IDENTIFIER "[" Expr "]"
            | IDENTIFIER , [ "(" , [ Expr , { "," , Expr } ] , ")" ]
            | "(" , Expr , ")" ;
