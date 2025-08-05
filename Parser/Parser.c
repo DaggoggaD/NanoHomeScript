@@ -41,6 +41,7 @@ static const char* decl_var_type_to_str(DeclarationVariableType t) {
 	case VARIABLE_BOOL:    return "bool";
 	case VARIABLE_CUSTOM:  return "custom";
 	case VARIABLE_AUTO:    return "auto";
+	case VARIABLE_ARRAY:   return "array";
 	case VARIABLE_NONE:    return "none";
 	default:               return "unknown";
 	}
@@ -82,6 +83,12 @@ void print_node(Node* node) {
 				printf(", ");
 		}
 		printf(")");
+		break;
+	}
+	case NODE_INDEX_ACCESS: {
+		printf("%s[", node->Value.AtArrayIndex.ArrayNameTok.Value.stringVal);
+		print_expression(node->Value.AtArrayIndex.Index);
+		printf("]");
 		break;
 	}
 	case NODE_GROUPING:
@@ -172,13 +179,8 @@ void print_assignment_expr(AssignmentExpression* a) {
 	}
 
 	// LHS: nome variabile (assumiamo IDENTIFIER)
-	if (a->VarName.Type == IDENTIFIER) {
-		printf("%s, ", a->VarName.Value.stringVal);
-	}
-	else {
-		// fallback generico se vuoi più diagnosi
-		printf("<non-ident asgn target>");
-	}
+	print_expression(a->VarName);
+	printf(", ");
 
 	// RHS
 	if (a->Value) {
@@ -227,6 +229,7 @@ DeclarationVariableType GetTokenDeclType() {
 	case KW_INT: return VARIABLE_INT;
 	case KW_DOUBLE: return VARIABLE_DOUBLE;
 	case KW_STRING: return VARIABLE_STRING;
+	case KW_ARRAY: return VARIABLE_ARRAY;
 	//case KWBOOL: return VARIABLE_BOOL;
 	default:
 		break;
@@ -316,6 +319,29 @@ Expression* MakeGroupedNode(NodeType Type, Expression* Expr) {
 
 	return CurrExpr;
 }
+
+Expression* MakeNodeIndexAccess(NodeType Type, TOKEN NameToken, Expression* Index) {
+	Node* CurrNode = malloc(sizeof(Node));
+	if (CurrNode == NULL) {
+		PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in MakeNodeIndexAccess: CurrNode malloc failed." });
+		return NULL;
+	}
+	CurrNode->Type = Type;
+	CurrNode->Value.AtArrayIndex = (NodeIndexAccess){NameToken, Index };
+
+	Expression* CurrExpr = malloc(sizeof(Expression));
+	if (CurrExpr == NULL) {
+		PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in MakeNodeIndexAccess: CurrExpr malloc failed." });
+		free(CurrNode);
+		return NULL;
+	}
+
+	CurrExpr->Type = EXPRESSION_NODE;
+	CurrExpr->Value.NodeExpr = CurrNode;
+
+	return CurrExpr;
+}
+
 
 Expression* MakeFactor(FactorType Type, Expression* Left){
 	Factor* CurrFactor = malloc(sizeof(Factor));
@@ -409,7 +435,7 @@ Expression* MakeDeclExpr(DeclarationExpressionType ExprType, DeclarationVariable
 
 }
 
-Expression* MakeVarAssignment(TOKEN VarName, Expression* Value) {
+Expression* MakeVarAssignment(Expression* VarName, Expression* Value) {
 	AssignmentExpression* CurrAssignExpression = malloc(sizeof(AssignmentExpression));
 	if (CurrAssignExpression == NULL) {
 		PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in MakeVarAssignment: CurrAssignExpression malloc failed." });
@@ -455,17 +481,29 @@ Expression* NodeParse() {
 			Advance();
 			return NULL; //TO BE LATER IMPLEMENTED
 		}
+		else if (CurrToken.Value.OpKwValue == SEP_LBRACKET) {
+			Advance();
+			Expression* Index = ExpressionParse();
+
+			if (CurrToken.Value.OpKwValue != SEP_RBRACKET) {
+				PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in NodeParse: Missing closing square parenthesis." });
+				return NULL;
+			}
+			Advance();
+
+			return MakeNodeIndexAccess(NODE_INDEX_ACCESS, NameToken, Index);
+		}
 
 		return MakeTokenNode(NODE_IDENTIFIER, NameToken);
 	}
 
 	else if (CurrToken.Value.OpKwValue == SEP_LPAREN) {
 		Advance();
-		Expression* Grouped = BinExprParse(); //CHANGE THIS TO PARSE, WHEN FUNCTION IS COMPLETE
+		Expression* Grouped = ExpressionParse();
 
 		if (CurrToken.Value.OpKwValue != SEP_RPAREN) {
 			PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in NodeParse: Missing closing parenthesis." });
-			return NULL; //ADD ERROR PATTERNS
+			return NULL;
 		}
 		Advance();
 		return MakeGroupedNode(NODE_GROUPING, Grouped);
@@ -580,13 +618,21 @@ Expression* DeclExprParse() {
 //Change VarName back to an expression, and build LValueParse, to parse the left side of an expression, so that you can both use identifier and array access at the same time
 //wich means you need to implement NODE_INDEX (array node access).
 Expression* VarAssignmentParse() {
-	TOKEN VarName = CurrToken;
-	Advance();
+	Expression* VarName = NodeParse();
 	Advance();
 
 	Expression* Value = ExpressionParse();
 	if(Value == NULL) PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in VarAssignmentParse: Missing value expression" });
 	return MakeVarAssignment(VarName, Value);
+}
+
+Expression* VarAssignmentArrayParse(Expression* VarName) {
+	Advance();
+
+	Expression* Value = ExpressionParse();
+	if (Value == NULL) PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in VarAssignmentParse: Missing value expression" });
+	return MakeVarAssignment(VarName, Value);
+
 }
 
 //REMEMBER: ARRAYS, FUNCTION CALLS, ETC NEED TO BE IMPLEMENTED LATER. 
@@ -616,10 +662,9 @@ Expression* ExpressionParse() {
 		switch (NextToken.Value.OpKwValue)
 		{
 		case SEP_EQUALS: 
-			return VarAssignmentParse(); 
-			break;
+			return VarAssignmentParse();
 		case SEP_LBRACKET: 
-			break;
+			return VarAssignmentArrayParse(NodeParse());
 
 
 		default:

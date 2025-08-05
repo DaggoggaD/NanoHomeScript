@@ -17,17 +17,15 @@
 (1 + 2) * (3 - 4) / 5;
 -(3 + 4) * 2;
 !(1 == 0);
+testin = 3+2;
 var:int testing;
 var:int Operation = (1 + 2) * (3 - 4) / 5;
 var:string StringTest = "banane";
 var:double DoubleTest = 12.5;
+var:array testArr;
+testArr[2+3] = 5*4-(-3*test[3+64*3-test*2]);
 var:struttura CustomTest = set;
-
 var:int sum;
-
 var:int value = 4;
 var value = 4;
-
-
 var AutoTest = 12.5;
-testin = 3+2;

@@ -17,6 +17,7 @@ typedef enum {
 	NODE_NULL,
 	NODE_IDENTIFIER,
 	NODE_CALL,
+	NODE_INDEX_ACCESS,
 	NODE_GROUPING
 } NodeType;
 
@@ -26,9 +27,15 @@ typedef struct S_NodeCall {
 	int ArgsNum;
 } NodeCall;
 
+typedef struct S_NodeIndexAccess {
+	TOKEN ArrayNameTok;
+	struct Expression* Index;
+} NodeIndexAccess;
+
 typedef union {
 	TOKEN Tok;
 	NodeCall FuncCall;
+	NodeIndexAccess AtArrayIndex;
 	struct Expression* NodeGrouping;
 } NodeValue;
 
@@ -107,6 +114,7 @@ typedef enum {
 	VARIABLE_DOUBLE,
 	VARIABLE_STRING,
 	VARIABLE_BOOL,
+	VARIABLE_ARRAY,
 	VARIABLE_CUSTOM,
 	VARIABLE_AUTO,
 	VARIABLE_NONE
@@ -121,7 +129,7 @@ typedef struct S_DeclExpr {
 } DeclarationExpression;
 
 typedef struct S_AssignmentExpression {
-	TOKEN VarName;
+	struct Expression* VarName;
 	struct Expression* Value;
 } AssignmentExpression;
 
