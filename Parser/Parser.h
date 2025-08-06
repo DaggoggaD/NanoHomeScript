@@ -18,7 +18,8 @@ typedef enum {
 	NODE_IDENTIFIER,
 	NODE_CALL,
 	NODE_INDEX_ACCESS,
-	NODE_GROUPING
+	NODE_GROUPING,
+	NODE_BLOCK
 } NodeType;
 
 typedef struct S_NodeCall {
@@ -32,10 +33,17 @@ typedef struct S_NodeIndexAccess {
 	struct Expression* Index;
 } NodeIndexAccess;
 
+typedef struct S_NodeBlock {
+	struct Expression** Expressions;
+	int Index;
+	int Size;
+} NodeBlock;
+
 typedef union {
 	TOKEN Tok;
 	NodeCall FuncCall;
 	NodeIndexAccess AtArrayIndex;
+	NodeBlock Block;
 	struct Expression* NodeGrouping;
 } NodeValue;
 
@@ -80,6 +88,7 @@ typedef enum {
 	EXPRESSION_ASSIGNMENT,
 	EXPRESSION_TERM,
 	EXPRESSION_FACTOR,
+	EXPRESSION_IF,
 	EXPRESSION_NODE
 } ExpressionType;
 
@@ -94,6 +103,8 @@ typedef enum {
 	BINARY_EQUAL,
 	BINARY_NOE,
 	BINARY_ASSIGN,
+	BINARY_AND,
+	BINARY_OR,
 	BINARY_NONE
 } BinaryExpressionType;
 
@@ -133,12 +144,18 @@ typedef struct S_AssignmentExpression {
 	struct Expression* Value;
 } AssignmentExpression;
 
+typedef struct S_IfExpression {
+	struct Expression* Condition;
+	struct Expression* IfBlock;
+} IfExpression;
+
 //#####Expression main struct#####
 
 typedef union {
 	BinaryExpression* BinExpr;
 	DeclarationExpression* DeclExpr;
 	AssignmentExpression* AssignExpr;
+	IfExpression* IfExpr;
 	Term* TermExpr;
 	Factor* FactorExpr;
 	Node* NodeExpr;

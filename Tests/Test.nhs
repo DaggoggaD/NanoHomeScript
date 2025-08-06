@@ -1,31 +1,23 @@
-1 + 2;
-3 - 5;
-7 * 4;
-8 / 2;
-1 + 2 * 3;
-(1 + 2) * 3;
-4 / 2 + 6;
-4 / (2 + 6);
-5 == 5;
-3 != 2;
-4 < 6;
-7 > 2;
-8 <= 8;
-9 >= 3;
--5 + 3;
-!0 == 1;
-(1 + 2) * (3 - 4) / 5;
--(3 + 4) * 2;
-!(1 == 0);
-testin = 3+2;
-var:int testing;
-var:int Operation = (1 + 2) * (3 - 4) / 5;
-var:string StringTest = "banane";
-var:double DoubleTest = 12.5;
-var:array testArr;
-testArr[2+3] = 5*4-(-3*test[3+64*3-test*2]);
-var:struttura CustomTest = set;
-var:int sum;
-var:int value = 4;
-var value = 4;
-var AutoTest = 12.5;
+var:int DeclInt;
+var:double DeclDouble;
+var:string DeclString;
+var:array DeclArray;
+DeclInt = 7;
+DeclDouble = 7.12;
+DeclString = "This is a string";
+DeclArray = {1,2,3,4,"Also a string", 12.2, {0.5,0.1,1}};
+
+var AutoVar = 7;
+var AutoVarDouble = 7.2;
+var AutoVarString = "Another string";
+var AutoVarArray = {1,2,3,4,"aaa"};
+
+var ComplexOperationExample = ((1 + 2) * (3 - 4) / 5) and ((7!=1) or (-5==1));
+
+if DeclInt == 5 {
+	if (DeclInt >= 3) or (DeclInt != 3) and (DeclInt > 1) {
+		var:int InsideDecl = 3;
+		InsideDecl = 3 + 2;
+	}
+	var:int MiddleDecl = 4 - 3*6;
+}

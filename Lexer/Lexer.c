@@ -178,10 +178,10 @@ void GenerateStringToken(TokenList** TokensHead, TokenList** TokensLast, FILE* R
 //Appends a keyword token to the list.
 void GenerateKeywordToken(KeywordType KWType, TokenList** TokensHead, TokenList** TokensLast) {
 	TokenValue TVal;
-
-	TVal.OpKwValue = KWType;
+	TVal.charVal = NULL;
 
 	TOKEN NewTok = GenerateTok(KEYWORD, TVal, RowIndex, ColIndex);
+	NewTok.OpKwValue = KWType;
 
 	AddToken(NewTok, TokensHead, TokensLast);
 
@@ -197,10 +197,10 @@ void GeneratorSMOperator(TokenList** TokensHead, TokenList** TokensLast, FILE* R
 	if (IsKeyword(CheckMultiString, &KWType))
 	{
 		TokenValue TVal;
-
-		TVal.OpKwValue = KWType;
+		TVal.charVal = NULL;
 
 		TOKEN NewTok = GenerateTok(KEYWORD, TVal, RowIndex, ColIndex);
+		NewTok.OpKwValue = KWType;
 
 		AddToken(NewTok, TokensHead, TokensLast);
 		ReadNextChar(ReadFile);
@@ -213,9 +213,10 @@ void GeneratorSMOperator(TokenList** TokensHead, TokenList** TokensLast, FILE* R
 		}
 		else {
 			TokenValue TVal;
-			TVal.OpKwValue = Separators[CurrentChar];
+			TVal.charVal = NULL;
 
 			TOKEN NewTok = GenerateTok(OPERATOR, TVal, RowIndex, ColIndex);
+			NewTok.OpKwValue = Separators[CurrentChar];
 
 			AddToken(NewTok, TokensHead, TokensLast);
 		}
@@ -296,8 +297,8 @@ TokenList* Lex(FILE* ReadFile) {
 	//TOKEN DEBUG INFO
 	TokenList* curr = TokensHead;
 	while (curr != NULL) {
-		if (curr->Tok.Type == OPERATOR) printf("TOKEN: (OPERATOR, %c, line: %d, column: %d)\n", InverseSeparators[curr->Tok.Value.OpKwValue], curr->Tok.Line, curr->Tok.EndColumn);
-		else if (curr->Tok.Type == KEYWORD) printf("TOKEN: (KEYWORD, %s, line: %d, column: %d)\n", Keywords[curr->Tok.Value.OpKwValue].Text, curr->Tok.Line, curr->Tok.EndColumn);
+		if (curr->Tok.Type == OPERATOR) printf("TOKEN: (OPERATOR, %c, line: %d, column: %d)\n", InverseSeparators[curr->Tok.OpKwValue], curr->Tok.Line, curr->Tok.EndColumn);
+		else if (curr->Tok.Type == KEYWORD) printf("TOKEN: (KEYWORD, %s, line: %d, column: %d)\n", Keywords[curr->Tok.OpKwValue].Text, curr->Tok.Line, curr->Tok.EndColumn);
 		else if (curr->Tok.Type == IDENTIFIER) printf("TOKEN: (IDENTIFIER, %s, line: %d, column: %d)\n", curr->Tok.Value.stringVal, curr->Tok.Line, curr->Tok.EndColumn);
 		else if (curr->Tok.Type == STRING) printf("TOKEN: (STRING, %s, line: %d, column: %d)\n", curr->Tok.Value.stringVal, curr->Tok.Line, curr->Tok.EndColumn);
 		else if (curr->Tok.Type == INT) printf("TOKEN: (INT, %d, line: %d, column: %d)\n", curr->Tok.Value.intVal, curr->Tok.Line, curr->Tok.EndColumn);

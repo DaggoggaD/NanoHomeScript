@@ -34,13 +34,12 @@ typedef union {
 	double doubleVal;
 	char charVal;
 	char* stringVal;
-
-    int OpKwValue;
 } TokenValue;
 
 typedef struct {
 	TokenType Type;
 	TokenValue Value;
+    int OpKwValue;
 	int Line;
 	int EndColumn;
 } TOKEN;
@@ -134,6 +133,6 @@ void InstantiateSepTable();
 
 void PrintGrammarError(GrammarError Error);
 void PrintGrammarWarning(GrammarError Error);
-
+bool CompareOperator(TOKEN Tok, int compare);
 
 void PrintToken(TOKEN Tok);

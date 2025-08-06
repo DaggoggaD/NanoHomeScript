@@ -4,46 +4,48 @@
 // Helper: restituisce la stringa dell'operatore binario
 const char* binary_op_to_str(BinaryExpressionType t) {
 	switch (t) {
-	case BINARY_ADD:      return "+";
-	case BINARY_SUB:      return "-";
-	case BINARY_LESS:     return "<";
-	case BINARY_GREATER:  return ">";
-	case BINARY_LOE:      return "<=";
-	case BINARY_GOE:      return ">=";
-	case BINARY_EQUAL:    return "==";
-	case BINARY_NOE:      return "!=";
-	case BINARY_ASSIGN:   return "=";
-	default:              return "?";
+	case BINARY_ADD: return "+";
+	case BINARY_SUB: return "-";
+	case BINARY_LESS: return "<";
+	case BINARY_GREATER: return ">";
+	case BINARY_LOE: return "<=";
+	case BINARY_GOE: return ">=";
+	case BINARY_EQUAL: return "==";
+	case BINARY_NOE: return "!=";
+	case BINARY_ASSIGN: return "=";
+	case BINARY_AND: return "&&";
+	case BINARY_OR: return "||";
+	default: return "?";
 	}
 }
 
 const char* term_op_to_str(TermType t) {
 	switch (t) {
-	case TERM_DIVISION:       return "/";
+	case TERM_DIVISION: return "/";
 	case TERM_MOLTIPLICATION: return "*";
-	default:                  return "";
+	default: return "";
 	}
 }
 
 const char* factor_op_to_str(FactorType f) {
 	switch (f) {
 	case FACTOR_NEGATIVE: return "-";
-	case FACTOR_NOT:      return "!";
-	default:              return "";
+	case FACTOR_NOT: return "!";
+	default: return "";
 	}
 }
 
 static const char* decl_var_type_to_str(DeclarationVariableType t) {
 	switch (t) {
-	case VARIABLE_INT:     return "int";
-	case VARIABLE_DOUBLE:  return "double";
-	case VARIABLE_STRING:  return "string";
-	case VARIABLE_BOOL:    return "bool";
-	case VARIABLE_CUSTOM:  return "custom";
-	case VARIABLE_AUTO:    return "auto";
-	case VARIABLE_ARRAY:   return "array";
-	case VARIABLE_NONE:    return "none";
-	default:               return "unknown";
+	case VARIABLE_INT: return "int";
+	case VARIABLE_DOUBLE: return "double";
+	case VARIABLE_STRING: return "string";
+	case VARIABLE_BOOL: return "bool";
+	case VARIABLE_CUSTOM: return "custom";
+	case VARIABLE_AUTO: return "auto";
+	case VARIABLE_ARRAY: return "array";
+	case VARIABLE_NONE: return "none";
+	default: return "unknown";
 	}
 }
 
@@ -59,13 +61,13 @@ void print_node(Node* node) {
 
 	switch (node->Type) {
 	case NODE_NUMBER:
-		if(node->Value.Tok.Type == INT) printf("%d", node->Value.Tok.Value.intVal);
+		if (node->Value.Tok.Type == INT) printf("%d", node->Value.Tok.Value.intVal);
 		else printf("%lf", node->Value.Tok.Value.doubleVal);
 		break;
 	case NODE_STRING:
 		printf("\"%s\"", node->Value.Tok.Value.stringVal);
 		break;
-	/*case NODE_BOOL:
+		/*case NODE_BOOL:
 		printf("%s", node->Value.Tok.boolean ? "true" : "false");
 		break;*/
 	case NODE_NULL:
@@ -92,9 +94,16 @@ void print_node(Node* node) {
 		break;
 	}
 	case NODE_GROUPING:
-		printf("(");
 		print_expression(node->Value.NodeGrouping);
-		printf(")");
+		break;
+	case NODE_BLOCK:
+		printf("(BLOCK: {");
+		for (size_t i = 0; i < node->Value.Block.Size; i++) {
+			printf("(");
+			print_expression(node->Value.Block.Expressions[i]);
+			printf("); ");
+		}
+		printf("})");
 		break;
 	default:
 		printf("<unknown node>");
@@ -192,6 +201,19 @@ void print_assignment_expr(AssignmentExpression* a) {
 	printf(")");
 }
 
+void print_if_expression(IfExpression* a) {
+	printf("(IF ");
+	if (!a) {
+		printf("<null assignment>");
+		return;
+	}
+	print_expression(a->Condition);
+	printf("{");
+	print_expression(a->IfBlock);
+	printf("}");
+	printf(")");
+}
+
 void print_expression(Expression* expr) {
 	if (!expr) {
 		printf("<null expr>");
@@ -216,6 +238,9 @@ void print_expression(Expression* expr) {
 	case EXPRESSION_ASSIGNMENT:
 		print_assignment_expr(expr->Value.AssignExpr);
 		break;
+	case EXPRESSION_IF:
+		print_if_expression(expr->Value.IfExpr);
+		break;
 	default:
 		printf("<unknown expr kind>");
 	}
@@ -224,13 +249,13 @@ void print_expression(Expression* expr) {
 //END OF PRINTING METHODS
 
 DeclarationVariableType GetTokenDeclType() {
-	switch (CurrToken.Value.OpKwValue)
+	switch (CurrToken.OpKwValue)
 	{
 	case KW_INT: return VARIABLE_INT;
 	case KW_DOUBLE: return VARIABLE_DOUBLE;
 	case KW_STRING: return VARIABLE_STRING;
 	case KW_ARRAY: return VARIABLE_ARRAY;
-	//case KWBOOL: return VARIABLE_BOOL;
+		//case KWBOOL: return VARIABLE_BOOL;
 	default:
 		break;
 	}
@@ -239,10 +264,10 @@ DeclarationVariableType GetTokenDeclType() {
 
 
 BinaryExpressionType GetBinaryExpressionType(TOKEN* Tok) {
-	if (Tok==NULL) return BINARY_NONE;
+	if (Tok == NULL) return BINARY_NONE;
 
 	if (Tok->Type == OPERATOR) {
-		switch (Tok->Value.OpKwValue)
+		switch (Tok->OpKwValue)
 		{
 		case SEP_OP_ADD: return BINARY_ADD;
 		case SEP_OP_SUB: return BINARY_SUB;
@@ -252,12 +277,14 @@ BinaryExpressionType GetBinaryExpressionType(TOKEN* Tok) {
 		}
 	}
 	else {
-		switch (Tok->Value.OpKwValue)
+		switch (Tok->OpKwValue)
 		{
 		case KW_COMPARE: return BINARY_EQUAL;
 		case KW_COMPARE_INV: return BINARY_NOE;
 		case KW_GOE: return BINARY_GOE;
 		case KW_LOE: return BINARY_LOE;
+		case KW_AND: return BINARY_AND;
+		case KW_OR: return BINARY_OR;
 		default: break;
 		}
 	}
@@ -267,7 +294,7 @@ BinaryExpressionType GetBinaryExpressionType(TOKEN* Tok) {
 void Advance() {
 	CurrToken = NextToken;
 	if (TokensFirst->next == NULL) return; //ADD ERROR PATTERNS
-	
+
 	TokensFirst = TokensFirst->next;
 	if (TokensFirst->next == NULL) {
 		ParserEndOfTokens = true;
@@ -327,7 +354,7 @@ Expression* MakeNodeIndexAccess(NodeType Type, TOKEN NameToken, Expression* Inde
 		return NULL;
 	}
 	CurrNode->Type = Type;
-	CurrNode->Value.AtArrayIndex = (NodeIndexAccess){NameToken, Index };
+	CurrNode->Value.AtArrayIndex = (NodeIndexAccess){ NameToken, Index };
 
 	Expression* CurrExpr = malloc(sizeof(Expression));
 	if (CurrExpr == NULL) {
@@ -343,11 +370,11 @@ Expression* MakeNodeIndexAccess(NodeType Type, TOKEN NameToken, Expression* Inde
 }
 
 
-Expression* MakeFactor(FactorType Type, Expression* Left){
+Expression* MakeFactor(FactorType Type, Expression* Left) {
 	Factor* CurrFactor = malloc(sizeof(Factor));
 	if (CurrFactor == NULL) {
 		PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in MakeFactor: CurrNode malloc failed." });
-		return NULL; 
+		return NULL;
 	}
 
 	CurrFactor->Type = Type;
@@ -457,6 +484,88 @@ Expression* MakeVarAssignment(Expression* VarName, Expression* Value) {
 	return CurrExpr;
 }
 
+Expression* MakeBlockNode(NodeBlock Block) {
+	Node* CurrNode = malloc(sizeof(Node));
+	if (CurrNode == NULL) {
+		PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in MakeBlockNode: CurrNode malloc failed." });
+		return NULL;
+	}
+
+	CurrNode->Type = NODE_BLOCK;
+	CurrNode->Value.Block = Block;
+
+	Expression* CurrExpr = malloc(sizeof(Expression));
+	if (CurrExpr == NULL) {
+		PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in MakeBlockNode: CurrExpr malloc failed." });
+		return NULL; //ADD ERROR PATTERNS
+	}
+	CurrExpr->Type = EXPRESSION_NODE;
+	CurrExpr->Value.NodeExpr = CurrNode;
+
+	return CurrExpr;
+}
+
+Expression* MakeIfExpression(Expression* Condition, Expression* IfBlock) {
+	IfExpression* CurrIfExpr = malloc(sizeof(CurrIfExpr));
+	if (CurrIfExpr == NULL) {
+		PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in MakeIfExpression: CurrIfExpr malloc failed." });
+		return NULL;
+	}
+
+	CurrIfExpr->Condition = Condition;
+	CurrIfExpr->IfBlock = IfBlock;
+
+	Expression* CurrExpr = malloc(sizeof(Expression));
+	if (CurrExpr == NULL) {
+		PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in MakeIfExpression: CurrExpr malloc failed." });
+		return NULL;
+	}
+	CurrExpr->Type = EXPRESSION_IF;
+	CurrExpr->Value.IfExpr = CurrIfExpr;
+
+	return CurrExpr;
+}
+
+Expression* ParseBlock() {
+	NodeBlock Block;
+	Block.Index = 0;
+	Block.Size = 1; //change this and blocksize+=1 below to a higher value, to increase performance, possibly reducing memory optimization
+	Block.Expressions = malloc(sizeof(Expression*) * Block.Size);
+	if (Block.Expressions == NULL) {
+		PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in ParseBlock: Block.Expressions malloc failed." });
+		return NULL;
+	}
+
+	while (CurrToken.OpKwValue != SEP_RBRACE && ParserEndOfTokens == false) {
+		Expression* CurrExpr = ExpressionParse();
+
+		if (Block.Index >= Block.Size) {
+			Block.Size += 1;
+			Block.Expressions = realloc(Block.Expressions, sizeof(Expression*) * Block.Size);
+			if (Block.Expressions == NULL) {
+				PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in ParseBlock: Block.Expressions malloc failed." });
+				return NULL;
+			}
+		}
+
+		Block.Expressions[Block.Index] = CurrExpr;
+		Block.Index++;
+
+		if (CurrToken.OpKwValue == SEP_SEMICOLON || CurrToken.OpKwValue == SEP_COMMA) Advance();
+	}
+
+	if (CurrToken.OpKwValue != SEP_RBRACE) {
+		PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in ParseBlock: missing closing '{'." });
+		free(Block.Expressions);
+		return NULL;
+	}
+
+	Advance();
+
+	return MakeBlockNode(Block);
+
+}
+
 Expression* NodeParse() {
 	//CONVERT TO SWITCH
 
@@ -477,15 +586,15 @@ Expression* NodeParse() {
 		Advance();
 
 		//Function Call
-		if (CurrToken.Value.OpKwValue == SEP_LPAREN) {
+		if (CurrToken.OpKwValue == SEP_LPAREN) {
 			Advance();
 			return NULL; //TO BE LATER IMPLEMENTED
 		}
-		else if (CurrToken.Value.OpKwValue == SEP_LBRACKET) {
+		else if (CurrToken.OpKwValue == SEP_LBRACKET) {
 			Advance();
 			Expression* Index = ExpressionParse();
 
-			if (CurrToken.Value.OpKwValue != SEP_RBRACKET) {
+			if (CurrToken.OpKwValue != SEP_RBRACKET) {
 				PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in NodeParse: Missing closing square parenthesis." });
 				return NULL;
 			}
@@ -497,11 +606,11 @@ Expression* NodeParse() {
 		return MakeTokenNode(NODE_IDENTIFIER, NameToken);
 	}
 
-	else if (CurrToken.Value.OpKwValue == SEP_LPAREN) {
+	else if (CurrToken.OpKwValue == SEP_LPAREN) {
 		Advance();
 		Expression* Grouped = ExpressionParse();
 
-		if (CurrToken.Value.OpKwValue != SEP_RPAREN) {
+		if (CurrToken.OpKwValue != SEP_RPAREN) {
 			PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in NodeParse: Missing closing parenthesis." });
 			return NULL;
 		}
@@ -509,31 +618,36 @@ Expression* NodeParse() {
 		return MakeGroupedNode(NODE_GROUPING, Grouped);
 	}
 
+	else if (CurrToken.OpKwValue == SEP_LBRACE) {
+		Advance();
+		return ParseBlock();
+	}
+
 	PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in NodeParse: Token/Series of Tokens isn't a NODE. Null return." });
 	return NULL;
 }
 
 Expression* FactorParse() {
-	if (CurrToken.Value.OpKwValue == SEP_OP_NOT) {
+	if (CurrToken.OpKwValue == SEP_OP_NOT) {
 		Advance();
 		Expression* Left = FactorParse();
 		return MakeFactor(FACTOR_NOT, Left);
 	}
-	else if (CurrToken.Value.OpKwValue == SEP_OP_SUB) {
+	else if (CurrToken.OpKwValue == SEP_OP_SUB) {
 		Advance();
 		Expression* Left = FactorParse();
 		return MakeFactor(FACTOR_NEGATIVE, Left);
 	}
-	
+
 	return NodeParse();
 }
 
 Expression* TermParse() {
 	Expression* Left = FactorParse();
 
-	while (CurrToken.Value.OpKwValue == SEP_OP_MULT || CurrToken.Value.OpKwValue == SEP_OP_DIV) {
+	while (CurrToken.OpKwValue == SEP_OP_MULT || CurrToken.OpKwValue == SEP_OP_DIV) {
 		TermType Type;
-		if (CurrToken.Value.OpKwValue == SEP_OP_MULT) Type = TERM_MOLTIPLICATION;
+		if (CurrToken.OpKwValue == SEP_OP_MULT) Type = TERM_MOLTIPLICATION;
 		else Type = TERM_DIVISION;
 
 		Advance();
@@ -546,7 +660,7 @@ Expression* TermParse() {
 Expression* BinExprParse() {
 	Expression* Left = TermParse();
 	BinaryExpressionType Type = GetBinaryExpressionType(&CurrToken);
-	
+
 	while (Type != BINARY_NONE) {
 		Advance();
 
@@ -578,8 +692,8 @@ Expression* DeclTypeExprParse() {
 	TOKEN VarName = CurrToken;
 	Advance();
 
-	if (CurrToken.Value.OpKwValue != SEP_EQUALS) {
-		if(CurrToken.Value.OpKwValue != SEP_SEMICOLON) PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in DeclTypeExprParse: Missing ';'." });
+	if (CurrToken.OpKwValue != SEP_EQUALS) {
+		if (CurrToken.OpKwValue != SEP_SEMICOLON) PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in DeclTypeExprParse: Missing ';'." });
 		return MakeDeclExpr(DECLARATION_WITH_TYPE, Type, VarName, NULL);
 	}
 
@@ -594,7 +708,7 @@ Expression* DeclAutoExprParse() {
 	TOKEN VarName = CurrToken;
 	Advance();
 
-	if (CurrToken.Value.OpKwValue != SEP_EQUALS) {
+	if (CurrToken.OpKwValue != SEP_EQUALS) {
 		PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in DeclAutoExprParse: Automatic type casting requires immediate assignment" });
 	}
 
@@ -609,7 +723,7 @@ Expression* DeclAutoExprParse() {
 
 Expression* DeclExprParse() {
 	Advance();
-	if (CurrToken.Value.OpKwValue == SEP_COLON) {
+	if (CurrToken.OpKwValue == SEP_COLON) {
 		return DeclTypeExprParse();
 	}
 	return DeclAutoExprParse();
@@ -622,7 +736,7 @@ Expression* VarAssignmentParse() {
 	Advance();
 
 	Expression* Value = ExpressionParse();
-	if(Value == NULL) PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in VarAssignmentParse: Missing value expression" });
+	if (Value == NULL) PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in VarAssignmentParse: Missing value expression" });
 	return MakeVarAssignment(VarName, Value);
 }
 
@@ -635,7 +749,19 @@ Expression* VarAssignmentArrayParse(Expression* VarName) {
 
 }
 
-//REMEMBER: ARRAYS, FUNCTION CALLS, ETC NEED TO BE IMPLEMENTED LATER. 
+Expression* IfExpressionParse() {
+	Advance();
+	Expression* Condition = ExpressionParse();
+	if(Condition==NULL) PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in IfExpressionParse: Missing condition expression" });
+	
+	if(CurrToken.OpKwValue!=SEP_LBRACE) PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in IfExpressionParse: Missing '{' in if expression" });
+
+	Expression* Block = ExpressionParse();
+
+	return MakeIfExpression(Condition, Block);
+}
+
+//REMEMBER: ARRAYS, FUNCTION CALLS, ETC NEED TO BE IMPLEMENTED LATER.
 //That said: now, var:array name; and var name = {....} are fully dinamic.
 //Array assignments, so name[expression] = ... are handled here (in the elif)
 //Meanwhile, in situations like x = nameArray[expression], nameArray[expression] is a node: see grammar.
@@ -647,23 +773,23 @@ Expression* ExpressionParse() {
 	//Start simple: add expceptions, like array[index] = 12; (wich is not identifier = expression;).
 	//Handle Keyword starting expressions.
 	if (CurrToken.Type == KEYWORD) {
-		switch (CurrToken.Value.OpKwValue) {
+		switch (CurrToken.OpKwValue) {
 		case KW_VAR:
 			return DeclExprParse();
-			break;
-		//Other cases...
+		case KW_IF:
+			return IfExpressionParse();
 		default:
 			break;
 		}
 	}
-	//Split this in, for example, IDENTIFIER "[" expr "]"... or IDENTIFIER "=" ... 
+	//Split this in, for example, IDENTIFIER "[" expr "]"... or IDENTIFIER "=" ...
 	else if (CurrToken.Type == IDENTIFIER) {
 		//Put these in a switch if they become too many
-		switch (NextToken.Value.OpKwValue)
+		switch (NextToken.OpKwValue)
 		{
-		case SEP_EQUALS: 
+		case SEP_EQUALS:
 			return VarAssignmentParse();
-		case SEP_LBRACKET: 
+		case SEP_LBRACKET:
 			return VarAssignmentArrayParse(NodeParse());
 
 
@@ -679,18 +805,18 @@ void Parse() {
 	CurrToken = TokensFirst->Tok;
 	if (TokensFirst != NULL) NextToken = TokensFirst->next->Tok;
 
-	while (ParserEndOfTokens==false) {
+	while (ParserEndOfTokens == false) {
 		Expression* CurrExpr = ExpressionParse();
 		print_expression(CurrExpr);
 		printf("\n");
 
-		if (CurrToken.Value.OpKwValue == SEP_SEMICOLON) {
+		if (CurrToken.OpKwValue == SEP_SEMICOLON) {
 			Advance();
 		}
-		else if(CurrExpr==NULL) {
+		else if (CurrExpr == NULL) {
 			PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in expression: Null return. Check function." });
 			Advance();
 		}
 	}
-	
+
 }

@@ -126,12 +126,17 @@ void PrintGrammarWarning(GrammarError Error) {
 }
 
 void PrintToken(TOKEN Tok) {
-    if (Tok.Type == OPERATOR) printf("TOKEN: (OPERATOR, %c, line: %d, column: %d)\n", InverseSeparators[Tok.Value.OpKwValue], Tok.Line, Tok.EndColumn);
-    else if (Tok.Type == KEYWORD) printf("TOKEN: (KEYWORD, %s, line: %d, column: %d)\n", Keywords[Tok.Value.OpKwValue].Text, Tok.Line, Tok.EndColumn);
+    if (Tok.Type == OPERATOR) printf("TOKEN: (OPERATOR, %c, line: %d, column: %d)\n", InverseSeparators[Tok.OpKwValue], Tok.Line, Tok.EndColumn);
+    else if (Tok.Type == KEYWORD) printf("TOKEN: (KEYWORD, %s, line: %d, column: %d)\n", Keywords[Tok.OpKwValue].Text, Tok.Line, Tok.EndColumn);
     else if (Tok.Type == IDENTIFIER) printf("TOKEN: (IDENTIFIER, %s, line: %d, column: %d)\n", Tok.Value.stringVal, Tok.Line, Tok.EndColumn);
     else if (Tok.Type == STRING) printf("TOKEN: (STRING, %s, line: %d, column: %d)\n", Tok.Value.stringVal, Tok.Line, Tok.EndColumn);
     else if (Tok.Type == INT) printf("TOKEN: (INT, %d, line: %d, column: %d)\n", Tok.Value.intVal, Tok.Line, Tok.EndColumn);
     else if (Tok.Type == DOUBLE) printf("TOKEN: (DOUBLE, %lf, line: %d, column: %d)\n", Tok.Value.doubleVal, Tok.Line, Tok.EndColumn);
+}
+
+bool CompareOperator(TOKEN Tok, int compare) {
+    if (Tok.Type == OPERATOR && Tok.OpKwValue == SEP_RBRACE) return true;
+    return false;
 }
 
 int main() {
