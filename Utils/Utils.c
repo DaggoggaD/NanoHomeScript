@@ -25,6 +25,7 @@ KeywordEntry Keywords[] = {
     {"double", KW_DOUBLE},
     {"string", KW_STRING},
     {"char", KW_CHAR},
+    {"void", KW_VOID},
     {"array", KW_ARRAY}, //Can be splitted in arrayInt, arrayFloat... Not suggested -> array[struct] wont be possible. stick with dinamic.
 
     {"//", KW_COMMENT},
@@ -142,6 +143,7 @@ bool CompareOperator(TOKEN Tok, int compare) {
 int main() {
     Lexer();
     Parse();
+    printf("\033[0;32m\nProgram executed successfully!\033[0m");
     char c = _getch();
     return 0;
 }

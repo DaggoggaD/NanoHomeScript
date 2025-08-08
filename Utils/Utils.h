@@ -99,6 +99,7 @@ typedef enum {
     KW_DOUBLE,
     KW_STRING,
     KW_CHAR,
+    KW_VOID,
     KW_ARRAY,
 
     KW_COMMENT,

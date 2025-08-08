@@ -1,5 +1,7 @@
  #pragma once
 #include "..\Utils\Utils.h"
+#define IF_FUNCTION 0
+#define WHILE_FUNCTION 1
 
 TOKEN CurrToken;
 TOKEN NextToken;
@@ -89,6 +91,8 @@ typedef enum {
 	EXPRESSION_TERM,
 	EXPRESSION_FACTOR,
 	EXPRESSION_IF,
+	EXPRESSION_WHILE,
+	EXPRESSION_FUNC,
 	EXPRESSION_NODE
 } ExpressionType;
 
@@ -149,6 +153,39 @@ typedef struct S_IfExpression {
 	struct Expression* IfBlock;
 } IfExpression;
 
+//Can be fusedn whith If expression. For clarity, kept separeted now.
+typedef struct S_WhileExpression {
+	struct Expression* Condition;
+	struct Expression* WhileBlock;
+} WhileExpression;
+
+
+typedef enum {
+	FUNCTION_INT,
+	FUNCTION_DOUBLE,
+	FUNCTION_STRING,
+	FUNCTION_BOOL,
+	FUNCTION_ARRAY,
+	FUNCTION_CUSTOM,
+	FUNCTION_VOID
+} FunctionType;
+
+typedef struct S_FunctionReturnInfo {
+	FunctionType Type;
+	char* CustomTypeName;
+} FunctionReturnInfo;
+
+typedef struct S_FunctionExpression {
+	FunctionReturnInfo** ReturnTypes;
+	int ReturnTypesCount;
+	
+	TOKEN FuncName;
+
+	struct Expression* Arguments;
+	struct Expression* FuncBlock;
+
+} FunctionExpression;
+
 //#####Expression main struct#####
 
 typedef union {
@@ -156,6 +193,8 @@ typedef union {
 	DeclarationExpression* DeclExpr;
 	AssignmentExpression* AssignExpr;
 	IfExpression* IfExpr;
+	WhileExpression* WhileExpr;
+	FunctionExpression* FuncExpr;
 	Term* TermExpr;
 	Factor* FactorExpr;
 	Node* NodeExpr;

@@ -49,6 +49,29 @@ static const char* decl_var_type_to_str(DeclarationVariableType t) {
 	}
 }
 
+void PrintFunctionType(FunctionReturnInfo* retInfo) {
+	if (retInfo == NULL) {
+		printf("<null>");
+		return;
+	}
+
+	switch (retInfo->Type) {
+	case FUNCTION_INT:    printf("int"); break;
+	case FUNCTION_DOUBLE: printf("double"); break;
+	case FUNCTION_STRING: printf("string"); break;
+	case FUNCTION_BOOL:   printf("bool"); break;
+	case FUNCTION_ARRAY:  printf("array"); break;
+	case FUNCTION_CUSTOM:
+		if (retInfo->CustomTypeName != NULL)
+			printf("%s", retInfo->CustomTypeName);
+		else
+			printf("<custom?>");
+		break;
+	case FUNCTION_VOID:   printf("void"); break;
+	default:              printf("<unknown type>"); break;
+	}
+}
+
 // Forward
 void print_expression(Expression* expr);
 
@@ -58,7 +81,6 @@ void print_node(Node* node) {
 		printf("<null node>");
 		return;
 	}
-
 	switch (node->Type) {
 	case NODE_NUMBER:
 		if (node->Value.Tok.Type == INT) printf("%d", node->Value.Tok.Value.intVal);
@@ -99,9 +121,8 @@ void print_node(Node* node) {
 	case NODE_BLOCK:
 		printf("(BLOCK: {");
 		for (size_t i = 0; i < node->Value.Block.Size; i++) {
-			printf("(");
 			print_expression(node->Value.Block.Expressions[i]);
-			printf("); ");
+			printf("; ");
 		}
 		printf("})");
 		break;
@@ -214,11 +235,58 @@ void print_if_expression(IfExpression* a) {
 	printf(")");
 }
 
+void print_while_expression(WhileExpression* a) {
+	printf("(While ");
+	if (!a) {
+		printf("<null assignment>");
+		return;
+	}
+	print_expression(a->Condition);
+	printf("{");
+	print_expression(a->WhileBlock);
+	printf("}");
+	printf(")");
+}
+
+void print_function_expression(FunctionExpression* funcExpr) {
+	if (funcExpr == NULL) {
+		printf("<null function expression>\n");
+		return;
+	}
+
+	printf("(Function: %s, Arguments: ", funcExpr->FuncName.Value.stringVal);
+
+	print_expression(funcExpr->Arguments);
+
+	printf(", returns: ");
+
+	if (funcExpr->ReturnTypesCount == 0) {
+		printf("void");
+	}
+	else if (funcExpr->ReturnTypesCount == 1) {
+		PrintFunctionType(funcExpr->ReturnTypes[0]);
+	}
+	else {
+		printf("(");
+		for (int i = 0; i < funcExpr->ReturnTypesCount; i++) {
+			PrintFunctionType(funcExpr->ReturnTypes[i]);
+			if (i < funcExpr->ReturnTypesCount - 1)
+				printf(", ");
+		}
+		printf(")");
+	}
+
+	printf(",\n");
+	print_expression(funcExpr->FuncBlock);
+	printf(");");
+}
+
 void print_expression(Expression* expr) {
 	if (!expr) {
 		printf("<null expr>");
 		return;
 	}
+
 	switch (expr->Type) {
 	case EXPRESSION_NODE:
 		print_node(expr->Value.NodeExpr);
@@ -240,6 +308,12 @@ void print_expression(Expression* expr) {
 		break;
 	case EXPRESSION_IF:
 		print_if_expression(expr->Value.IfExpr);
+		break;
+	case EXPRESSION_WHILE:
+		print_while_expression(expr->Value.WhileExpr);
+		break;
+	case EXPRESSION_FUNC:
+		print_function_expression(expr->Value.FuncExpr);
 		break;
 	default:
 		printf("<unknown expr kind>");
@@ -289,6 +363,18 @@ BinaryExpressionType GetBinaryExpressionType(TOKEN* Tok) {
 		}
 	}
 	return BINARY_NONE;
+}
+
+FunctionType GetReturnType() {
+	switch (CurrToken.OpKwValue)
+	{
+	case KW_INT: return FUNCTION_INT;
+	case KW_DOUBLE: return FUNCTION_DOUBLE;
+	case KW_STRING: return FUNCTION_STRING;
+	case KW_VOID: return FUNCTION_VOID;
+	//case KW_BOOL: return FUCNTION_BOOL;
+	default: return FUNCTION_CUSTOM;
+	}
 }
 
 void Advance() {
@@ -506,7 +592,7 @@ Expression* MakeBlockNode(NodeBlock Block) {
 }
 
 Expression* MakeIfExpression(Expression* Condition, Expression* IfBlock) {
-	IfExpression* CurrIfExpr = malloc(sizeof(CurrIfExpr));
+	IfExpression* CurrIfExpr = malloc(sizeof(IfExpression));
 	if (CurrIfExpr == NULL) {
 		PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in MakeIfExpression: CurrIfExpr malloc failed." });
 		return NULL;
@@ -526,7 +612,41 @@ Expression* MakeIfExpression(Expression* Condition, Expression* IfBlock) {
 	return CurrExpr;
 }
 
-Expression* ParseBlock() {
+//When if and while gets fused, (later in development) use MakeIfExpression.
+Expression* MakeWhileExpression(Expression* Condition, Expression* WhileBlock) {
+	WhileExpression* CurrWhileExpr = malloc(sizeof(WhileExpression));
+	if (CurrWhileExpr == NULL) {
+		PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in MakeWhileExpression: CurrWhileExpr malloc failed." });
+		return NULL;
+	}
+
+	CurrWhileExpr->Condition = Condition;
+	CurrWhileExpr->WhileBlock = WhileBlock;
+
+	Expression* CurrExpr = malloc(sizeof(Expression));
+	if (CurrExpr == NULL) {
+		PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in MakeIfExpression: CurrExpr malloc failed." });
+		return NULL;
+	}
+	CurrExpr->Type = EXPRESSION_WHILE;
+	CurrExpr->Value.WhileExpr = CurrWhileExpr;
+
+	return CurrExpr;
+}
+
+Expression* MakeFunctionExpression(FunctionExpression* FuncExpr){
+	Expression* CurrExpr = malloc(sizeof(Expression));
+	if (CurrExpr == NULL) {
+		PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in MakeIfExpression: CurrExpr malloc failed." });
+		return NULL;
+	}
+	CurrExpr->Type = EXPRESSION_FUNC;
+	CurrExpr->Value.FuncExpr = FuncExpr;
+
+	return CurrExpr;
+}
+
+Expression* ParseBlock(int SepTokenStop) {
 	NodeBlock Block;
 	Block.Index = 0;
 	Block.Size = 1; //change this and blocksize+=1 below to a higher value, to increase performance, possibly reducing memory optimization
@@ -536,7 +656,13 @@ Expression* ParseBlock() {
 		return NULL;
 	}
 
-	while (CurrToken.OpKwValue != SEP_RBRACE && ParserEndOfTokens == false) {
+	if (CurrToken.OpKwValue == SepTokenStop) {
+		Block.Expressions == NULL;
+		Block.Index = 0;
+		Block.Size = 0;
+	}
+
+	while (CurrToken.OpKwValue != SepTokenStop && ParserEndOfTokens == false) {
 		Expression* CurrExpr = ExpressionParse();
 
 		if (Block.Index >= Block.Size) {
@@ -554,7 +680,7 @@ Expression* ParseBlock() {
 		if (CurrToken.OpKwValue == SEP_SEMICOLON || CurrToken.OpKwValue == SEP_COMMA) Advance();
 	}
 
-	if (CurrToken.OpKwValue != SEP_RBRACE) {
+	if (CurrToken.OpKwValue != SepTokenStop) {
 		PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in ParseBlock: missing closing '{'." });
 		free(Block.Expressions);
 		return NULL;
@@ -563,7 +689,6 @@ Expression* ParseBlock() {
 	Advance();
 
 	return MakeBlockNode(Block);
-
 }
 
 Expression* NodeParse() {
@@ -620,7 +745,7 @@ Expression* NodeParse() {
 
 	else if (CurrToken.OpKwValue == SEP_LBRACE) {
 		Advance();
-		return ParseBlock();
+		return ParseBlock(SEP_RBRACE);
 	}
 
 	PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in NodeParse: Token/Series of Tokens isn't a NODE. Null return." });
@@ -693,7 +818,7 @@ Expression* DeclTypeExprParse() {
 	Advance();
 
 	if (CurrToken.OpKwValue != SEP_EQUALS) {
-		if (CurrToken.OpKwValue != SEP_SEMICOLON) PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in DeclTypeExprParse: Missing ';'." });
+		if (CurrToken.OpKwValue != SEP_SEMICOLON && CurrToken.OpKwValue != SEP_COMMA) PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in DeclTypeExprParse: Missing ';'." });
 		return MakeDeclExpr(DECLARATION_WITH_TYPE, Type, VarName, NULL);
 	}
 
@@ -749,7 +874,7 @@ Expression* VarAssignmentArrayParse(Expression* VarName) {
 
 }
 
-Expression* IfExpressionParse() {
+Expression* IfWhileExpressionParse(int IfOrWhile) {
 	Advance();
 	Expression* Condition = ExpressionParse();
 	if(Condition==NULL) PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in IfExpressionParse: Missing condition expression" });
@@ -758,7 +883,93 @@ Expression* IfExpressionParse() {
 
 	Expression* Block = ExpressionParse();
 
-	return MakeIfExpression(Condition, Block);
+	if(IfOrWhile == IF_FUNCTION) return MakeIfExpression(Condition, Block);
+	return MakeWhileExpression(Condition, Block);
+}
+
+
+Expression* FuncExpressionParse() {
+	Advance();
+	FunctionExpression* FuncExpression = malloc(sizeof(FunctionExpression));
+	if(FuncExpression==NULL) {
+		PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in FuncExpressionParse: Failed FuncExpression malloc." });
+		return NULL;
+	}
+	FuncExpression->ReturnTypesCount = 1;
+	int Index = 0;
+
+	FunctionReturnInfo** Info = malloc(sizeof(FunctionReturnInfo*));
+	if (Info == NULL) {
+		PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in FuncExpressionParse: Failed FunctionReturnInfo malloc." });
+		return NULL;
+	}
+
+
+	if (CurrToken.OpKwValue == SEP_LPAREN) {
+		Advance();
+		while (CurrToken.OpKwValue != SEP_RPAREN && (CurrToken.Type == KEYWORD || CurrToken.Type == IDENTIFIER)) {
+			FunctionReturnInfo* CurrInfo = malloc(sizeof(FunctionReturnInfo));
+			if (CurrInfo == NULL) {
+				PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in FuncExpressionParse: Failed FunctionReturnInfo malloc." });
+				return NULL;
+			}
+
+			CurrInfo->Type = GetReturnType();
+
+			if (CurrInfo->Type != FUNCTION_CUSTOM) CurrInfo->CustomTypeName = NULL;
+			else strcpy_s(CurrInfo->CustomTypeName, strlen(CurrToken.Value.stringVal), CurrToken.Value.stringVal);
+
+			Info[Index] = CurrInfo;
+			Index++;
+
+			if (Index >= FuncExpression->ReturnTypesCount) {
+				FuncExpression->ReturnTypesCount++;
+				Info = realloc(Info, sizeof(FunctionReturnInfo*) * FuncExpression->ReturnTypesCount);
+				if (Info == NULL) {
+					PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in FuncExpressionParse: Failed FunctionReturnInfo realloc." });
+					return NULL;
+				}
+			}
+
+			Advance();
+			if (CurrToken.OpKwValue == SEP_COMMA) Advance();
+		}
+		FuncExpression->ReturnTypesCount = Index;
+		
+		if(CurrToken.OpKwValue != SEP_RPAREN) PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in FuncExpressionParse: missing ')' after return types declaration." });
+
+		Advance();
+	}
+	else if (CurrToken.Type == KEYWORD || CurrToken.Type == IDENTIFIER) {
+		Info[Index] = malloc(sizeof(FunctionReturnInfo));
+		if (Info[Index] == NULL) {
+			PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in FuncExpressionParse: Failed FunctionReturnInfo malloc." });
+			return NULL;
+		}
+		Info[Index]->Type = GetReturnType();
+
+		if(Info[Index]->Type != FUNCTION_CUSTOM) Info[Index]->CustomTypeName = NULL;
+		else strcpy_s(Info[Index]->CustomTypeName, strlen(CurrToken.Value.stringVal),CurrToken.Value.stringVal);
+
+		Advance();
+	}
+	else PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in FuncExpressionParse: Missing return type in function expression" });
+	
+	FuncExpression->ReturnTypes = Info;
+
+	if(CurrToken.Type != IDENTIFIER) PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in FuncExpressionParse: Missing function name." });
+
+	FuncExpression->FuncName = CurrToken;
+	Advance();
+
+	if(CurrToken.OpKwValue != SEP_LPAREN) PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in FuncExpressionParse: Missing function's arguments '('." });
+		
+	Advance();
+	FuncExpression->Arguments = ParseBlock(SEP_RPAREN);
+
+	FuncExpression->FuncBlock = ExpressionParse();
+
+	return MakeFunctionExpression(FuncExpression);
 }
 
 //REMEMBER: ARRAYS, FUNCTION CALLS, ETC NEED TO BE IMPLEMENTED LATER.
@@ -777,7 +988,11 @@ Expression* ExpressionParse() {
 		case KW_VAR:
 			return DeclExprParse();
 		case KW_IF:
-			return IfExpressionParse();
+			return IfWhileExpressionParse(IF_FUNCTION);
+		case KW_WHILE:
+			return IfWhileExpressionParse(WHILE_FUNCTION);
+		case KW_FUNC:
+			return FuncExpressionParse();
 		default:
 			break;
 		}

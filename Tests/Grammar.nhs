@@ -67,17 +67,17 @@ declARR.sum();						//sums all elements of the array: arithmetic (int, float), c
 declARR.len();						//returns array lenght. Can be used also for strings.//
 
 //FUNCTIONS//
-func (int) sum(var:int a, var:int b){ //defines a function, with return type (int) and arguments.//
+func int sum(var:int a, var:int b){ //defines a function, with return type (int) and arguments.//
 	.
 	.
 	.
 }
 func void voidFunc(...){};			//void function. Using return will prompt an ERROR.//
-func (int,float,int,string) complexFunc(var:int a, var:float b, var:string c){}//
+func (int,float,int,string) complexFunc(var:int a, var:float b, var:string c){}
 									//multi return type function.//
-return declINT, declFLOAT, 7;		//multi return grammar.//
+return (declINT, declFLOAT, 7);		//multi return grammar.//
 
-declINT, declFloat, instINT = complexFunc(1,1,"aa");
+(declINT, declFloat, instINT) = complexFunc(1,1,"aa");
 									//function output mapping.//
 
 complexFunc(7, 1.2, declSTRING);	//multi argument function call.//
