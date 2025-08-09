@@ -1,4 +1,4 @@
-func (array, int) myfunc(var:int a, var:double b;){
+func (array, int) myfunc(var:int a, var:double b){
 	var c = a + b;
 	var d = (1+3*2)/5 + 4 / 3;
 	var Arr = {1,2,3,4,5;};
@@ -22,8 +22,8 @@ func void main(){
 
 	var ComplexOperationExample = ((1 + 2) * (3 - 4) / 5) and ((7!=1) or (-5==1));
 
-	if DeclInt == 5 {
-		if (DeclInt >= 3) or (DeclInt != 3) and (DeclInt > 1) {
+	if (DeclInt == 5) and (Declfloat != 3) {
+		if ((DeclInt >= 3) or (DeclInt != 3)) and (DeclInt > 1) {
 			var:int InsideDecl = 3;
 			InsideDecl = 3 + 2;
 		}

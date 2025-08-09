@@ -860,7 +860,6 @@ Expression* NodeParse() {
 		case KW_RETURN:
 			return ReturnNodeParse();
 		default:
-			printf("\nENTERED DEFAULT IN NODE\n");
 			return NULL;
 		}
 	}
@@ -951,7 +950,8 @@ Expression* DeclTypeExprParse() {
 	Advance();
 
 	if (CurrToken.OpKwValue != SEP_EQUALS) {
-		if (CurrToken.OpKwValue != SEP_SEMICOLON && CurrToken.OpKwValue != SEP_COMMA) PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in DeclTypeExprParse: Missing ';'." });
+		//Added Rparen for function arguments. Remove that if it causes problems. Extensive tests needed.
+		if (CurrToken.OpKwValue != SEP_SEMICOLON && CurrToken.OpKwValue != SEP_COMMA && CurrToken.OpKwValue!=SEP_RPAREN) PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in DeclTypeExprParse: Missing ';'." });
 		return MakeDeclExpr(DECLARATION_WITH_TYPE, Type, VarName, NULL);
 	}
 
