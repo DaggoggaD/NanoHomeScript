@@ -21,6 +21,7 @@ typedef enum {
 	NODE_CALL,
 	NODE_INDEX_ACCESS,
 	NODE_GROUPING,
+	NODE_RETURN,
 	NODE_BLOCK
 } NodeType;
 
@@ -41,11 +42,17 @@ typedef struct S_NodeBlock {
 	int Size;
 } NodeBlock;
 
+typedef struct S_NodeReturn {
+	struct FunctionReturnInfo** ReturnNames;
+	int ReturnNamesCount;
+} NodeReturn;
+
 typedef union {
 	TOKEN Tok;
 	NodeCall FuncCall;
 	NodeIndexAccess AtArrayIndex;
 	NodeBlock Block;
+	NodeReturn Return;
 	struct Expression* NodeGrouping;
 } NodeValue;
 
@@ -173,7 +180,7 @@ typedef enum {
 typedef struct S_FunctionReturnInfo {
 	FunctionType Type;
 	char* CustomTypeName;
-} FunctionReturnInfo;
+} FunctionReturnInfo;//Both for function return types and return itself.
 
 typedef struct S_FunctionExpression {
 	FunctionReturnInfo** ReturnTypes;

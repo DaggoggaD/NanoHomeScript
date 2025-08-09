@@ -1,3 +1,4 @@
+#define _CRT_SECURE_NO_WARNINGS
 #include "Parser.h"
 
 //Printing method. Only chatGpt part. Way too boring.
@@ -125,6 +126,25 @@ void print_node(Node* node) {
 			printf("; ");
 		}
 		printf("})");
+		break;
+	case NODE_RETURN:
+		printf("(RETURN: ");
+		if (node->Value.Return.ReturnNamesCount == 0) {
+			printf("void");
+		}
+		else if (node->Value.Return.ReturnNamesCount == 1) {
+			PrintFunctionType(node->Value.Return.ReturnNames[0]);
+		}
+		else {
+			printf("(");
+			for (int i = 0; i < node->Value.Return.ReturnNamesCount; i++) {
+				PrintFunctionType(node->Value.Return.ReturnNames[i]);
+				if (i < node->Value.Return.ReturnNamesCount - 1)
+					printf(", ");
+			}
+			printf(")");
+		}
+		printf(")");
 		break;
 	default:
 		printf("<unknown node>");
@@ -372,6 +392,7 @@ FunctionType GetReturnType() {
 	case KW_DOUBLE: return FUNCTION_DOUBLE;
 	case KW_STRING: return FUNCTION_STRING;
 	case KW_VOID: return FUNCTION_VOID;
+	case KW_ARRAY: return FUNCTION_ARRAY;
 	//case KW_BOOL: return FUCNTION_BOOL;
 	default: return FUNCTION_CUSTOM;
 	}
@@ -646,6 +667,99 @@ Expression* MakeFunctionExpression(FunctionExpression* FuncExpr){
 	return CurrExpr;
 }
 
+Expression* MakeNodeReturn(FunctionReturnInfo** ReturnNames, int ReturnNamesCount) {
+	NodeReturn Return = (NodeReturn){ ReturnNames, ReturnNamesCount };
+
+	Node* CurrNode = malloc(sizeof(Node));
+	if (CurrNode == NULL) {
+		PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in MakeNodeReturn: CurrNode malloc failed." });
+		return NULL;
+	}
+
+	CurrNode->Type = NODE_RETURN;
+	CurrNode->Value.Return = Return;
+
+
+	Expression* CurrExpr = malloc(sizeof(Expression));
+	if (CurrExpr == NULL) {
+		PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in MakeNodeReturn: CurrExpr malloc failed." });
+		return NULL;
+	}
+	CurrExpr->Type = EXPRESSION_NODE;
+	CurrExpr->Value.NodeExpr = CurrNode;
+
+	return CurrExpr;
+}
+
+FunctionReturnInfo** MakeTypeList(int* ReturnTypesCount, int Index) {
+	FunctionReturnInfo** Info = malloc(sizeof(FunctionReturnInfo*));
+	if (Info == NULL) {
+		PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in FuncExpressionParse: Failed FunctionReturnInfo malloc." });
+		return NULL;
+	}
+
+	if (CurrToken.OpKwValue == SEP_LPAREN) {
+		Advance();
+		while (CurrToken.OpKwValue != SEP_RPAREN && (CurrToken.Type == KEYWORD || CurrToken.Type == IDENTIFIER)) {
+			FunctionReturnInfo* CurrInfo = malloc(sizeof(FunctionReturnInfo));
+			if (CurrInfo == NULL) {
+				PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in FuncExpressionParse: Failed FunctionReturnInfo malloc." });
+				return NULL;
+			}
+
+			CurrInfo->Type = GetReturnType();
+			
+
+			if (CurrInfo->Type != FUNCTION_CUSTOM) CurrInfo->CustomTypeName = NULL;
+			else {
+				PrintToken(CurrToken);
+				CurrInfo->CustomTypeName = malloc(sizeof(char) * strlen(CurrToken.Value.stringVal));
+				if (CurrInfo->CustomTypeName == NULL) return NULL;
+				strcpy(CurrInfo->CustomTypeName, CurrToken.Value.stringVal);
+			}
+			Info[Index] = CurrInfo;
+			Index++;
+
+			if (Index >= *ReturnTypesCount) {
+				(*ReturnTypesCount)++;
+				Info = realloc(Info, sizeof(FunctionReturnInfo*) * (*ReturnTypesCount));
+				if (Info == NULL) {
+					PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in FuncExpressionParse: Failed FunctionReturnInfo realloc." });
+					return NULL;
+				}
+			}
+
+			Advance();
+			if (CurrToken.OpKwValue == SEP_COMMA) Advance();
+		}
+		*ReturnTypesCount = Index;
+
+		if (CurrToken.OpKwValue != SEP_RPAREN) PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in FuncExpressionParse: missing ')' after return types declaration." });
+
+
+	}
+	else if (CurrToken.Type == KEYWORD || CurrToken.Type == IDENTIFIER) {
+		Info[Index] = malloc(sizeof(FunctionReturnInfo));
+		if (Info[Index] == NULL) {
+			PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in FuncExpressionParse: Failed FunctionReturnInfo malloc." });
+			return NULL;
+		}
+		Info[Index]->Type = GetReturnType();
+
+		if (Info[Index]->Type != FUNCTION_CUSTOM) Info[Index]->CustomTypeName = NULL;
+		else {
+			Info[Index]->CustomTypeName = malloc(sizeof(char) * strlen(CurrToken.Value.stringVal));
+			if (Info[Index]->CustomTypeName == NULL) return NULL;
+			strcpy(Info[Index]->CustomTypeName, CurrToken.Value.stringVal);
+		}
+	}
+	else PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in FuncExpressionParse: Missing return type in function expression" });
+
+	return Info;
+}
+
+
+
 Expression* ParseBlock(int SepTokenStop) {
 	NodeBlock Block;
 	Block.Index = 0;
@@ -691,6 +805,15 @@ Expression* ParseBlock(int SepTokenStop) {
 	return MakeBlockNode(Block);
 }
 
+Expression* ReturnNodeParse() {
+	Advance();
+	int RetNCount = 1;
+	FunctionReturnInfo** ReturnList = MakeTypeList(&RetNCount, 0);
+	Advance();
+
+	return MakeNodeReturn(ReturnList, RetNCount);
+}
+
 Expression* NodeParse() {
 	//CONVERT TO SWITCH
 
@@ -731,6 +854,16 @@ Expression* NodeParse() {
 		return MakeTokenNode(NODE_IDENTIFIER, NameToken);
 	}
 
+	else if (CurrToken.Type == KEYWORD) {
+		switch (CurrToken.OpKwValue)
+		{
+		case KW_RETURN:
+			return ReturnNodeParse();
+		default:
+			printf("\nENTERED DEFAULT IN NODE\n");
+			return NULL;
+		}
+	}
 	else if (CurrToken.OpKwValue == SEP_LPAREN) {
 		Advance();
 		Expression* Grouped = ExpressionParse();
@@ -887,7 +1020,6 @@ Expression* IfWhileExpressionParse(int IfOrWhile) {
 	return MakeWhileExpression(Condition, Block);
 }
 
-
 Expression* FuncExpressionParse() {
 	Advance();
 	FunctionExpression* FuncExpression = malloc(sizeof(FunctionExpression));
@@ -904,56 +1036,8 @@ Expression* FuncExpressionParse() {
 		return NULL;
 	}
 
-
-	if (CurrToken.OpKwValue == SEP_LPAREN) {
-		Advance();
-		while (CurrToken.OpKwValue != SEP_RPAREN && (CurrToken.Type == KEYWORD || CurrToken.Type == IDENTIFIER)) {
-			FunctionReturnInfo* CurrInfo = malloc(sizeof(FunctionReturnInfo));
-			if (CurrInfo == NULL) {
-				PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in FuncExpressionParse: Failed FunctionReturnInfo malloc." });
-				return NULL;
-			}
-
-			CurrInfo->Type = GetReturnType();
-
-			if (CurrInfo->Type != FUNCTION_CUSTOM) CurrInfo->CustomTypeName = NULL;
-			else strcpy_s(CurrInfo->CustomTypeName, strlen(CurrToken.Value.stringVal), CurrToken.Value.stringVal);
-
-			Info[Index] = CurrInfo;
-			Index++;
-
-			if (Index >= FuncExpression->ReturnTypesCount) {
-				FuncExpression->ReturnTypesCount++;
-				Info = realloc(Info, sizeof(FunctionReturnInfo*) * FuncExpression->ReturnTypesCount);
-				if (Info == NULL) {
-					PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in FuncExpressionParse: Failed FunctionReturnInfo realloc." });
-					return NULL;
-				}
-			}
-
-			Advance();
-			if (CurrToken.OpKwValue == SEP_COMMA) Advance();
-		}
-		FuncExpression->ReturnTypesCount = Index;
-		
-		if(CurrToken.OpKwValue != SEP_RPAREN) PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in FuncExpressionParse: missing ')' after return types declaration." });
-
-		Advance();
-	}
-	else if (CurrToken.Type == KEYWORD || CurrToken.Type == IDENTIFIER) {
-		Info[Index] = malloc(sizeof(FunctionReturnInfo));
-		if (Info[Index] == NULL) {
-			PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in FuncExpressionParse: Failed FunctionReturnInfo malloc." });
-			return NULL;
-		}
-		Info[Index]->Type = GetReturnType();
-
-		if(Info[Index]->Type != FUNCTION_CUSTOM) Info[Index]->CustomTypeName = NULL;
-		else strcpy_s(Info[Index]->CustomTypeName, strlen(CurrToken.Value.stringVal),CurrToken.Value.stringVal);
-
-		Advance();
-	}
-	else PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in FuncExpressionParse: Missing return type in function expression" });
+	Info = MakeTypeList(&(FuncExpression->ReturnTypesCount), Index);
+	Advance();
 	
 	FuncExpression->ReturnTypes = Info;
 

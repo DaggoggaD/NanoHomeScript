@@ -1,7 +1,8 @@
-func (double, int) myfunc(var:int a, var:float b;){
+func (array, int) myfunc(var:int a, var:double b;){
 	var c = a + b;
 	var d = (1+3*2)/5 + 4 / 3;
 	var Arr = {1,2,3,4,5;};
+	return (Arr, c);
 };
 
 func void main(){
@@ -28,4 +29,5 @@ func void main(){
 		}
 		var:int MiddleDecl = 4 - 3*6;
 	}
+	return ();
 }
