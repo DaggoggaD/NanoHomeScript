@@ -1,4 +1,9 @@
-# NanoHomeScript
+<h1 align="center">
+<p align="center">  
+  <img src="Icons/NHSExtensionIconTemp.png" alt="Logo NanoHomeScript" width="200">
+</p>NanoHomeScript
+</h1>
+
 
 NanoHomeScript is a lightweight programming language designed specifically for **home automation** and **phone notification workflows**.  
 Its syntax is clean, human-readable, and tailored for writing automation scripts that connect smart devices, sensors, and custom alerts.
