@@ -77,6 +77,7 @@ TOKEN GenerateTok(TokenType TokType, TokenValue TokValue, int Line, int Col) {
 	Tok.Value = TokValue;
 	Tok.Line = Line;
 	Tok.EndColumn = Col;
+	Tok.OpKwValue = -1;
 
 	return Tok;
 }

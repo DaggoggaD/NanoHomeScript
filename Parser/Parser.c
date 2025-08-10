@@ -49,6 +49,8 @@ static const char* decl_var_type_to_str(DeclarationVariableType t) {
 	default: return "unknown";
 	}
 }
+// Forward
+void print_expression(Expression* expr);
 
 void PrintFunctionType(FunctionReturnInfo* retInfo) {
 	if (retInfo == NULL) {
@@ -63,8 +65,10 @@ void PrintFunctionType(FunctionReturnInfo* retInfo) {
 	case FUNCTION_BOOL:   printf("bool"); break;
 	case FUNCTION_ARRAY:  printf("array"); break;
 	case FUNCTION_CUSTOM:
-		if (retInfo->CustomTypeName != NULL)
-			printf("%s", retInfo->CustomTypeName);
+		if (retInfo->Value != NULL) {
+			printf("Custom Type/Value: ");
+			print_expression(retInfo->Value);
+		}
 		else
 			printf("<custom?>");
 		break;
@@ -72,9 +76,6 @@ void PrintFunctionType(FunctionReturnInfo* retInfo) {
 	default:              printf("<unknown type>"); break;
 	}
 }
-
-// Forward
-void print_expression(Expression* expr);
 
 // Stampa Node (primary)
 void print_node(Node* node) {
@@ -102,9 +103,9 @@ void print_node(Node* node) {
 	case NODE_CALL: {
 		// nome funzione
 		printf("%s(", node->Value.FuncCall.CallNameTok.Value.stringVal);
-		for (size_t i = 0; i < (size_t)node->Value.FuncCall.ArgsNum; ++i) {
-			print_expression(node->Value.FuncCall.Arguments[i]);
-			if (i + 1 < (size_t)node->Value.FuncCall.ArgsNum)
+		for (int i = 0; i < node->Value.FuncCall.ArgumentsNamesCount; i++) {
+			PrintFunctionType(node->Value.FuncCall.Arguments[i]);
+			if (i < node->Value.FuncCall.ArgumentsNamesCount - 1)
 				printf(", ");
 		}
 		printf(")");
@@ -356,7 +357,6 @@ DeclarationVariableType GetTokenDeclType() {
 	return VARIABLE_NONE;
 }
 
-
 BinaryExpressionType GetBinaryExpressionType(TOKEN* Tok) {
 	if (Tok == NULL) return BINARY_NONE;
 
@@ -408,6 +408,8 @@ void Advance() {
 	}
 	else NextToken = TokensFirst->next->Tok;
 }
+
+//========EXPRESSION INTIALIZATIONS HELPERS========
 
 Expression* MakeTokenNode(NodeType Type, TOKEN Tok) {
 	Node* CurrNode = malloc(sizeof(Node));
@@ -475,7 +477,6 @@ Expression* MakeNodeIndexAccess(NodeType Type, TOKEN NameToken, Expression* Inde
 
 	return CurrExpr;
 }
-
 
 Expression* MakeFactor(FactorType Type, Expression* Left) {
 	Factor* CurrFactor = malloc(sizeof(Factor));
@@ -612,6 +613,28 @@ Expression* MakeBlockNode(NodeBlock Block) {
 	return CurrExpr;
 }
 
+Expression* MakeCallExpression(NodeCall ArgsList, int ArgsN) {
+	Node* CurrNode = malloc(sizeof(Node));
+	if (CurrNode == NULL) {
+		PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in MakeCallExpression: CurrNode malloc failed." });
+		return NULL;
+	}
+	CurrNode->Type = NODE_CALL;
+	CurrNode->Value.FuncCall = ArgsList;
+
+	Expression* CurrExpr = malloc(sizeof(Expression));
+	if (CurrExpr == NULL) {
+		PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in MakeCallExpression: CurrExpr malloc failed." });
+		free(CurrNode);
+		return NULL;
+	}
+
+	CurrExpr->Type = EXPRESSION_NODE;
+	CurrExpr->Value.NodeExpr = CurrNode;
+
+	return CurrExpr;
+}
+
 Expression* MakeIfExpression(Expression* Condition, Expression* IfBlock) {
 	IfExpression* CurrIfExpr = malloc(sizeof(IfExpression));
 	if (CurrIfExpr == NULL) {
@@ -700,7 +723,7 @@ FunctionReturnInfo** MakeTypeList(int* ReturnTypesCount, int Index) {
 
 	if (CurrToken.OpKwValue == SEP_LPAREN) {
 		Advance();
-		while (CurrToken.OpKwValue != SEP_RPAREN && (CurrToken.Type == KEYWORD || CurrToken.Type == IDENTIFIER)) {
+		while (CurrToken.Type != OPERATOR || CurrToken.OpKwValue == SEP_LBRACE) { //SEP_LBRACE is for array values immidiate insert. Could be done more elegantly.
 			FunctionReturnInfo* CurrInfo = malloc(sizeof(FunctionReturnInfo));
 			if (CurrInfo == NULL) {
 				PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in FuncExpressionParse: Failed FunctionReturnInfo malloc." });
@@ -708,15 +731,8 @@ FunctionReturnInfo** MakeTypeList(int* ReturnTypesCount, int Index) {
 			}
 
 			CurrInfo->Type = GetReturnType();
-			
+			CurrInfo->Value = NodeParse();
 
-			if (CurrInfo->Type != FUNCTION_CUSTOM) CurrInfo->CustomTypeName = NULL;
-			else {
-				PrintToken(CurrToken);
-				CurrInfo->CustomTypeName = malloc(sizeof(char) * strlen(CurrToken.Value.stringVal));
-				if (CurrInfo->CustomTypeName == NULL) return NULL;
-				strcpy(CurrInfo->CustomTypeName, CurrToken.Value.stringVal);
-			}
 			Info[Index] = CurrInfo;
 			Index++;
 
@@ -729,7 +745,7 @@ FunctionReturnInfo** MakeTypeList(int* ReturnTypesCount, int Index) {
 				}
 			}
 
-			Advance();
+			if(CurrToken.OpKwValue != SEP_RPAREN) Advance();
 			if (CurrToken.OpKwValue == SEP_COMMA) Advance();
 		}
 		*ReturnTypesCount = Index;
@@ -745,20 +761,14 @@ FunctionReturnInfo** MakeTypeList(int* ReturnTypesCount, int Index) {
 			return NULL;
 		}
 		Info[Index]->Type = GetReturnType();
-
-		if (Info[Index]->Type != FUNCTION_CUSTOM) Info[Index]->CustomTypeName = NULL;
-		else {
-			Info[Index]->CustomTypeName = malloc(sizeof(char) * strlen(CurrToken.Value.stringVal));
-			if (Info[Index]->CustomTypeName == NULL) return NULL;
-			strcpy(Info[Index]->CustomTypeName, CurrToken.Value.stringVal);
-		}
+		Info[Index]->Value = NodeParse();
 	}
 	else PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in FuncExpressionParse: Missing return type in function expression" });
 
 	return Info;
 }
 
-
+//========EXPRESSION PARSE FUNCTIONS========
 
 Expression* ParseBlock(int SepTokenStop) {
 	NodeBlock Block;
@@ -835,8 +845,13 @@ Expression* NodeParse() {
 
 		//Function Call
 		if (CurrToken.OpKwValue == SEP_LPAREN) {
+			int RetNCount = 1;
+			FunctionReturnInfo** ArgumentsList = MakeTypeList(&RetNCount, 0);
+
+			NodeCall Call = (NodeCall){ NameToken, ArgumentsList, RetNCount };
 			Advance();
-			return NULL; //TO BE LATER IMPLEMENTED
+
+			return MakeCallExpression(Call, RetNCount); //TO BE LATER IMPLEMENTED
 		}
 		else if (CurrToken.OpKwValue == SEP_LBRACKET) {
 			Advance();
@@ -987,8 +1002,6 @@ Expression* DeclExprParse() {
 	return DeclAutoExprParse();
 }
 
-//Change VarName back to an expression, and build LValueParse, to parse the left side of an expression, so that you can both use identifier and array access at the same time
-//wich means you need to implement NODE_INDEX (array node access).
 Expression* VarAssignmentParse() {
 	Expression* VarName = NodeParse();
 	Advance();
@@ -1065,8 +1078,6 @@ Expression* FuncExpressionParse() {
 //Call() in a node is already initialized in NodeParse (only the main branch. there is nothing implemented yet). Arrays still needs to be implemented.
 //Clear this comment when completed.
 Expression* ExpressionParse() {
-	//Start simple: add expceptions, like array[index] = 12; (wich is not identifier = expression;).
-	//Handle Keyword starting expressions.
 	if (CurrToken.Type == KEYWORD) {
 		switch (CurrToken.OpKwValue) {
 		case KW_VAR:
@@ -1081,9 +1092,7 @@ Expression* ExpressionParse() {
 			break;
 		}
 	}
-	//Split this in, for example, IDENTIFIER "[" expr "]"... or IDENTIFIER "=" ...
 	else if (CurrToken.Type == IDENTIFIER) {
-		//Put these in a switch if they become too many
 		switch (NextToken.OpKwValue)
 		{
 		case SEP_EQUALS:

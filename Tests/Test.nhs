@@ -1,11 +1,14 @@
-func (array, int) myfunc(var:int a, var:double b){
-	var c = a + b;
-	var d = (1+3*2)/5 + 4 / 3;
+func (array, int) myfunc(var:int a, var:double b, var:string c, var:array d, var:int IdentifierTest){
+	var e = a + b;
+	var f = (1+3*2)/5 + 4 / 3;
 	var Arr = {1,2,3,4,5;};
-	return (Arr, c);
+	return (Arr, a);
 };
 
-func void main(){
+func (void) main(){
+	var IdentifierTestValue = 3;
+	myfunc(1,1.2,"StringTest", {1,2,3,4}, IdentifierTestValue);
+
 	var:int DeclInt;
 	var:double DeclDouble;
 	var:string DeclString;

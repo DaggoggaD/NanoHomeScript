@@ -27,8 +27,8 @@ typedef enum {
 
 typedef struct S_NodeCall {
 	TOKEN CallNameTok;
-	struct Expression** Arguments; //Array of expressions
-	int ArgsNum;
+	struct FunctionReturnInfo** Arguments; //Array of expressions
+	int ArgumentsNamesCount;
 } NodeCall;
 
 typedef struct S_NodeIndexAccess {
@@ -166,7 +166,6 @@ typedef struct S_WhileExpression {
 	struct Expression* WhileBlock;
 } WhileExpression;
 
-
 typedef enum {
 	FUNCTION_INT,
 	FUNCTION_DOUBLE,
@@ -179,8 +178,8 @@ typedef enum {
 
 typedef struct S_FunctionReturnInfo {
 	FunctionType Type;
-	char* CustomTypeName;
-} FunctionReturnInfo;//Both for function return types and return itself.
+	struct Expression* Value;
+} FunctionReturnInfo;//Both for function return types, return itself and function calls.
 
 typedef struct S_FunctionExpression {
 	FunctionReturnInfo** ReturnTypes;
@@ -223,3 +222,5 @@ void Parse();
 Expression* BinExprParse();
 
 Expression* ExpressionParse();
+
+Expression* NodeParse();
