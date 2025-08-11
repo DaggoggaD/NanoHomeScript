@@ -3,15 +3,7 @@
 #define IF_FUNCTION 0
 #define WHILE_FUNCTION 1
 
-TOKEN CurrToken;
-TOKEN NextToken;
-bool ParserEndOfTokens = false;
-
-//==================NON TERMINALS//==================
-typedef struct Expression;
-
-
-//__________NODE__________
+//ENUMERATORS
 typedef enum {
 	NODE_NUMBER,
 	NODE_STRING,
@@ -24,6 +16,77 @@ typedef enum {
 	NODE_RETURN,
 	NODE_BLOCK
 } NodeType;
+
+typedef enum {
+	FACTOR_NEGATIVE,
+	FACTOR_NOT,
+	FACTOR_NONE
+} FactorType;
+
+typedef enum {
+	TERM_DIVISION,
+	TERM_MOLTIPLICATION,
+	TERM_NONE
+} TermType;
+
+typedef enum {
+	EXPRESSION_BINARY,
+	EXPRESSION_DECLARATION,
+	EXPRESSION_ASSIGNMENT,
+	EXPRESSION_TERM,
+	EXPRESSION_FACTOR,
+	EXPRESSION_IF,
+	EXPRESSION_WHILE,
+	EXPRESSION_FUNC,
+	EXPRESSION_NODE
+} ExpressionType;
+
+typedef enum {
+	BINARY_ADD,
+	BINARY_SUB,
+	BINARY_LESS,
+	BINARY_GREATER,
+	BINARY_LOE,
+	BINARY_GOE,
+	BINARY_EQUAL,
+	BINARY_NOE,
+	BINARY_ASSIGN,
+	BINARY_AND,
+	BINARY_OR,
+	BINARY_NONE
+} BinaryExpressionType;
+
+typedef enum {
+	DECLARATION_AUTO,
+	DECLARATION_WITH_TYPE
+} DeclarationExpressionType;
+
+typedef enum {
+	VARIABLE_INT,
+	VARIABLE_DOUBLE,
+	VARIABLE_STRING,
+	VARIABLE_BOOL,
+	VARIABLE_ARRAY,
+	VARIABLE_CUSTOM,
+	VARIABLE_AUTO,
+	VARIABLE_NONE
+} DeclarationVariableType;
+
+typedef enum {
+	FUNCTION_INT,
+	FUNCTION_DOUBLE,
+	FUNCTION_STRING,
+	FUNCTION_BOOL,
+	FUNCTION_ARRAY,
+	FUNCTION_CUSTOM,
+	FUNCTION_VOID
+} FunctionType;
+
+
+//Structures and Unions
+
+//Nodes
+typedef struct Expression;
 
 typedef struct S_NodeCall {
 	TOKEN CallNameTok;
@@ -61,86 +124,25 @@ typedef struct S_Node {
 	NodeValue Value;
 } Node;
 
-//__________FACTOR__________
-
-typedef enum {
-	FACTOR_NEGATIVE,
-	FACTOR_NOT,
-	FACTOR_NONE
-} FactorType;
-
+//Factor
 typedef struct S_Factor {
 	FactorType Type;
 	struct Expression* Value;
-
 } Factor;
 
-//__________TERM__________
-
-typedef enum {
-	TERM_DIVISION,
-	TERM_MOLTIPLICATION,
-	TERM_NONE
-} TermType;
-
+//Term
 typedef struct S_Term {
 	TermType Type;
 	struct Expression* Left;
 	struct Expression* Right;
 } Term;
 
-//__________EXPRESSIONS__________
-
-typedef enum {
-	EXPRESSION_BINARY,
-	EXPRESSION_DECLARATION,
-	EXPRESSION_ASSIGNMENT,
-	EXPRESSION_TERM,
-	EXPRESSION_FACTOR,
-	EXPRESSION_IF,
-	EXPRESSION_WHILE,
-	EXPRESSION_FUNC,
-	EXPRESSION_NODE
-} ExpressionType;
-
-//###Sub-Expressions###
-typedef enum {
-	BINARY_ADD,
-	BINARY_SUB,
-	BINARY_LESS,
-	BINARY_GREATER,
-	BINARY_LOE,
-	BINARY_GOE,
-	BINARY_EQUAL,
-	BINARY_NOE,
-	BINARY_ASSIGN,
-	BINARY_AND,
-	BINARY_OR,
-	BINARY_NONE
-} BinaryExpressionType;
-
+//Expressions
 typedef struct S_BinExpr {
 	BinaryExpressionType Type;
 	struct Expression* Left;
 	struct Expression* Right;
 } BinaryExpression;
-
-
-typedef enum {
-	DECLARATION_AUTO,
-	DECLARATION_WITH_TYPE
-} DeclarationExpressionType;
-
-typedef enum {
-	VARIABLE_INT,
-	VARIABLE_DOUBLE,
-	VARIABLE_STRING,
-	VARIABLE_BOOL,
-	VARIABLE_ARRAY,
-	VARIABLE_CUSTOM,
-	VARIABLE_AUTO,
-	VARIABLE_NONE
-} DeclarationVariableType;
 
 typedef struct S_DeclExpr {
 	DeclarationExpressionType ExprType;
@@ -160,26 +162,17 @@ typedef struct S_IfExpression {
 	struct Expression* IfBlock;
 } IfExpression;
 
-//Can be fusedn whith If expression. For clarity, kept separeted now.
 typedef struct S_WhileExpression {
+	//Can be fusedn whith If expression. For clarity, kept separeted now.
 	struct Expression* Condition;
 	struct Expression* WhileBlock;
 } WhileExpression;
 
-typedef enum {
-	FUNCTION_INT,
-	FUNCTION_DOUBLE,
-	FUNCTION_STRING,
-	FUNCTION_BOOL,
-	FUNCTION_ARRAY,
-	FUNCTION_CUSTOM,
-	FUNCTION_VOID
-} FunctionType;
-
 typedef struct S_FunctionReturnInfo {
+	//Both for function return types, return itself and function calls.
 	FunctionType Type;
 	struct Expression* Value;
-} FunctionReturnInfo;//Both for function return types, return itself and function calls.
+} FunctionReturnInfo;
 
 typedef struct S_FunctionExpression {
 	FunctionReturnInfo** ReturnTypes;
@@ -192,8 +185,7 @@ typedef struct S_FunctionExpression {
 
 } FunctionExpression;
 
-//#####Expression main struct#####
-
+//Expression parent struct
 typedef union {
 	BinaryExpression* BinExpr;
 	DeclarationExpression* DeclExpr;
@@ -211,12 +203,12 @@ typedef struct S_Expression {
 	ExpressionValue Value;
 } Expression;
 
-
 typedef struct S_ExpressionList {
 	Expression Expr;
 	struct S_ExpressionList* Next;
 } ExpressionList;
 
+//Functions
 void Parse();
 
 Expression* BinExprParse();
