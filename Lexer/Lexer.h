@@ -15,9 +15,3 @@ bool IsString = false;
 
 //FUNCTION DECLARATIONS
 void Lexer();
-
-void ReadNextChar(FILE* ReadFile);
-
-TokenList* Lex(FILE* ReadFile);
-
-FILE* Shell();

@@ -7,6 +7,7 @@ TOKEN CurrToken;
 TOKEN NextToken;
 bool ParserEndOfTokens = false;
 
+//========PARSER UTILITIES========
 
 DeclarationVariableType GetTokenDeclType() {
 	switch (CurrToken.OpKwValue)
@@ -60,6 +61,27 @@ FunctionType GetReturnType() {
 	//case KW_BOOL: return FUCNTION_BOOL;
 	default: return FUNCTION_CUSTOM;
 	}
+}
+
+void AddExpression(Expression* Expr) {
+	ExpressionList* Curr = malloc(sizeof(ExpressionList));
+	if (Curr == NULL){
+		PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in AddExpression: CurrExpr malloc failed." });
+		return NULL;
+	}
+
+	Curr->Expr = Expr;
+	Curr->Next = NULL;
+	
+	if (ExprFirst == NULL) {
+		ExprFirst = Curr;
+		ExprLast = Curr;
+		return;
+	}
+
+	ExprLast->Next = Curr;
+	ExprLast = Curr;
+	return;
 }
 
 void Advance() {
@@ -698,13 +720,19 @@ Expression* ExpressionParse() {
 	return BinExprParse();
 }
 
-//Initializer
+//========INITIALIZER========
 void Parse() {
 	CurrToken = TokensFirst->Tok;
 	if (TokensFirst != NULL) NextToken = TokensFirst->next->Tok;
 
+	ExprFirst = NULL;
+	ExprLast = NULL;
+
 	while (ParserEndOfTokens == false) {
 		Expression* CurrExpr = ExpressionParse();
+
+		AddExpression(CurrExpr);
+
 		print_expression(CurrExpr);
 		printf("\n");
 

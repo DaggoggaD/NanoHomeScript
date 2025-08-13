@@ -143,6 +143,7 @@ bool CompareOperator(TOKEN Tok, int compare) {
 int main() {
     Lexer();
     Parse();
+    Execute();
     printf("\033[0;32m\nProgram executed successfully!\033[0m");
     char c = _getch();
     return 0;

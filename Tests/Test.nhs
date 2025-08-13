@@ -1,36 +1,18 @@
-func (array, int) myfunc(var:int a, var:double b, var:string c, var:array d, var:int IdentifierTest){
-	var e = a + b;
-	var f = (1+3*2)/5 + 4 / 3;
-	var Arr = {1,2,3,4,5;};
-	return (Arr, a);
-};
-
-func (void) main(){
-	var IdentifierTestValue = 3;
-	myfunc(1,1.2,"StringTest", {1,2,3,4}, IdentifierTestValue);
-
-	var:int DeclInt;
-	var:double DeclDouble;
-	var:string DeclString;
-	var:array DeclArray;
-	DeclInt = 7;
-	DeclDouble = 7.12;
-	DeclString = "This is a string";
-	DeclArray = {1,2,3,4,"Also a string", 12.2, {0.5,0.1,1}};
-
-	var AutoVar = 7;
-	var AutoVarDouble = 7.2;
-	var AutoVarString = "Another string";
-	var AutoVarArray = {1,2,3,4,"aaa"};
-
-	var ComplexOperationExample = ((1 + 2) * (3 - 4) / 5) and ((7!=1) or (-5==1));
-
-	if (DeclInt == 5) and (Declfloat != 3) {
-		if ((DeclInt >= 3) or (DeclInt != 3)) and (DeclInt > 1) {
-			var:int InsideDecl = 3;
-			InsideDecl = 3 + 2;
-		}
-		var:int MiddleDecl = 4 - 3*6;
-	}
-	return ();
-}
+3+2;
+5+3;
+3+2.5*4;
+(3+2)*4;
+5.0-2+3;
+10/2+3.5;
+2*3+4.0;
+7-2.5+1;
+4/2*3.0;
+1+2+3.0;
+5.0-1-2;
+(3+2.5)*4-1;
+3+(2*4)-5.0;
+(10/2)+(3*1.5);
+(7-2.5)+(1+0.5);
+2*(3+4.0)-5;
+(1+2+3.0)*2;
+5.0-(1+2);

@@ -12,7 +12,6 @@ const char* binary_op_to_str(BinaryExpressionType t) {
 	case BINARY_GOE: return ">=";
 	case BINARY_EQUAL: return "==";
 	case BINARY_NOE: return "!=";
-	case BINARY_ASSIGN: return "=";
 	case BINARY_AND: return "&&";
 	case BINARY_OR: return "||";
 	default: return "?";

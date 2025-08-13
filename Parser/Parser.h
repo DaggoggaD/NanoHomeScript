@@ -3,12 +3,14 @@
 #define IF_FUNCTION 0
 #define WHILE_FUNCTION 1
 
+
+
 //ENUMERATORS
 typedef enum {
-	NODE_NUMBER,
-	NODE_STRING,
-	NODE_BOOL,
-	NODE_NULL,
+	NODE_NUMBER, //done
+	NODE_STRING, //done
+	NODE_BOOL, //tbli
+	NODE_NULL, 
 	NODE_IDENTIFIER,
 	NODE_CALL,
 	NODE_INDEX_ACCESS,
@@ -50,7 +52,6 @@ typedef enum {
 	BINARY_GOE,
 	BINARY_EQUAL,
 	BINARY_NOE,
-	BINARY_ASSIGN,
 	BINARY_AND,
 	BINARY_OR,
 	BINARY_NONE
@@ -204,9 +205,14 @@ typedef struct S_Expression {
 } Expression;
 
 typedef struct S_ExpressionList {
-	Expression Expr;
+	Expression* Expr;
 	struct S_ExpressionList* Next;
 } ExpressionList;
+
+//Global Variables
+
+ExpressionList* ExprFirst;
+ExpressionList* ExprLast;
 
 //Functions
 void Parse();
