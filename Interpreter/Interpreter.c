@@ -6,7 +6,7 @@ Expression* CurrExpression;
 bool EndOfExpressions = false;
 VariableEnvironment GlobalEnvironment;
 
-//Print method from chatgpt. Later moved into PrintHelpers
+//Print methodS from chatgpt. Later moved into PrintHelpers
 void PrintValue(Value v) {
 	switch (v.Type) {
 	case TYPE_INT:
@@ -48,6 +48,50 @@ void PrintValue(Value v) {
 		break;
 	}
 }
+
+const char* ValueTypeToString(ValueType type) {
+	switch (type) {
+	case TYPE_INT:    return "int";
+	case TYPE_DOUBLE: return "double";
+	case TYPE_STRING: return "string";
+	case TYPE_BOOL:   return "bool";
+	case TYPE_ARRAY:  return "array";
+	case TYPE_STRUCT: return "struct";
+	case TYPE_VOID:   return "void";
+	default:          return "<unknown>";
+	}
+}
+
+void PrintVariable(const Variable* var) {
+	if (!var) return;
+
+	printf("Variable Name: %s\n", var->VariableName ? var->VariableName : "(null)");
+	printf("  Forced Type: %s\n", ValueTypeToString(var->ForcedValueType));
+	printf("  Value Type:  %s\n", ValueTypeToString(var->VariableValue.Type));
+	printf("  Value: ");
+	PrintValue(var->VariableValue);
+	printf("\n");
+}
+
+void PrintVariableEnvironment(const VariableEnvironment* env) {
+	if (!env) return;
+
+	printf("\n\033[1;34m=== Variable Environment ===\033[0m\n");
+	printf("Variables count: %d\n", env->LastVarIndex);
+
+	for (int i = 0; i < env->LastVarIndex; i++) {
+		printf("[%d] ", i);
+		PrintVariable(&env->Variables[i]);
+	}
+
+	if (env->ParentEnvironment) {
+		printf("--- Parent Environment ---\n");
+		PrintVariableEnvironment(env->ParentEnvironment);
+	}
+	printf("\033[1;34m=== End of Variable Environment ===\033[0m\n");
+}
+
+///END OF PRINTING METHODS
 
 void AdvanceExpression() {
 	if (ExprFirst == NULL) {
@@ -96,10 +140,116 @@ double OperateDoubleValues(double LValue, double RValue, BinaryExpressionType Op
 	}
 }
 
-Value ExecuteNode(Expression* Expr){
+VariableEnvironment CreateEmptyEnvironment(VariableEnvironment *Parent) {
+	Variable* Vars = malloc(sizeof(Variable));
+	if(Vars == NULL) PrintGrammarError((GrammarError) { 0, 0, "Error in CreateEmptyEnv: Vars malloc failed." });
+
+	return (VariableEnvironment) {Vars, .VariablesSize = 1, .LastVarIndex = 0, Parent };
+}
+
+void AddVariableToEnvironment(Variable *Var, VariableEnvironment *Env) {
+	Env->Variables[Env->LastVarIndex] = *Var;
+	Env->LastVarIndex++;
+
+	//Add search parent to check if name already exists
+
+	if (Env->LastVarIndex >= Env->VariablesSize) {
+		Env->VariablesSize++;
+		Env->Variables = realloc(Env->Variables, sizeof(Variable) * Env->VariablesSize);
+		if(Env->Variables == NULL) PrintGrammarError((GrammarError) { 0, 0, "Error in AddVariableToEnvironment: Vars malloc failed." });
+	}
+}
+
+Variable* SearchEnvironment(char* VarName, VariableEnvironment *Env){
+	VariableEnvironment* CurrEnv = Env;
+
+	while (CurrEnv!=NULL)
+	{
+		for (int i = 0; i < CurrEnv->LastVarIndex; i++)
+		{
+			if (strcmp(VarName, CurrEnv->Variables[i].VariableName) == 0) {
+				return &(CurrEnv->Variables[i]);
+			}
+		}
+		CurrEnv = CurrEnv->ParentEnvironment;
+	}
+	
+	return NULL;
+}
+
+ValueType GetForcedVariableType(DeclarationVariableType Type) {
+
+	switch (Type)
+	{
+	case VARIABLE_INT: return TYPE_INT;
+	case VARIABLE_DOUBLE: return TYPE_DOUBLE;
+	case VARIABLE_STRING: return TYPE_STRING;
+	case VARIABLE_BOOL: return TYPE_BOOL;
+	case VARIABLE_ARRAY: return TYPE_ARRAY;
+	case VARIABLE_CUSTOM: return TYPE_STRUCT;
+	case VARIABLE_AUTO: return -1;
+	case VARIABLE_NONE:	return TYPE_VOID;
+	default:
+		PrintGrammarError((GrammarError) { 0, 0, "Error in GetForcedVariableType: unknown variable type." });
+		return -1;
+		break;
+	}
+}
+
+void AssignVariableValue(Variable* Var, Value Val) {
+
+	switch (Var->ForcedValueType)
+	{
+	case TYPE_INT: 
+		if (Val.Type == TYPE_INT) Var->VariableValue.IntValue = Val.IntValue;
+		else if (Val.Type == TYPE_DOUBLE) Var->VariableValue.IntValue = (int)Val.DoubleValue;
+		else {
+			PrintGrammarError((GrammarError) { 0, 0, "Error in AssignVariableValue: Tried to assign non int/double to int." });
+			return;
+		}
+		break;
+
+	case TYPE_DOUBLE: 
+		if (Val.Type == TYPE_INT) Var->VariableValue.DoubleValue = (double)Val.IntValue;
+		else if (Val.Type == TYPE_DOUBLE) Var->VariableValue.DoubleValue = Val.DoubleValue;
+		else {
+			PrintGrammarError((GrammarError) { 0, 0, "Error in AssignVariableValue: Tried to assign non int/double to double." });
+			return;
+		}
+		break;
+
+	case TYPE_STRING: 
+		if(Val.Type!=TYPE_STRING) {
+			PrintGrammarError((GrammarError) { 0, 0, "Error in AssignVariableValue: Tried to assign non string to string." });
+			return;
+		}
+
+		Var->VariableValue.StringValue = realloc(Var->VariableValue.StringValue, sizeof(char) * strlen(Val.StringValue));
+		if (Var->VariableValue.StringValue == NULL) {
+			PrintGrammarError((GrammarError) { 0, 0, "Error in AssignVariableValue: StringValue malloc failed." });
+			return;
+		}
+
+		strcpy(Var->VariableValue.StringValue, Val.StringValue);
+
+	//case TYPE_BOOL: 
+
+	//case TYPE_ARRAY:
+
+	//case TYPE_STRUCT: 
+
+	//case TYPE_VOID:
+	case -1:
+		Var->VariableValue = Val;
+		break;
+	}
+
+}
+
+Value ExecuteNode(Expression* Expr, VariableEnvironment *Env){
 	Node* CurrNode = Expr->Value.NodeExpr;
-	if(CurrNode==NULL) PrintGrammarError((GrammarError) { CurrNode->Value.Tok.Line, CurrNode->Value.Tok.EndColumn, "Error in ExecuteNode: CurrNode is not a node." });
 	Value CurrVal;
+
 
 	switch (CurrNode->Type)
 	{
@@ -125,10 +275,20 @@ Value ExecuteNode(Expression* Expr){
 		return CurrVal;
 
 	case NODE_GROUPING:
-		return ExecuteExpression(CurrNode->Value.NodeGrouping);
+		return ExecuteExpression(CurrNode->Value.NodeGrouping, Env);
 
 	//case NODE_BOOL:
 	
+	case NODE_IDENTIFIER:
+		CurrVal.Type = TYPE_VOID;
+		CurrVal.StringValue = malloc(sizeof(char) * strlen(CurrNode->Value.Tok.Value.stringVal));
+		if (CurrVal.StringValue == NULL) {
+			PrintGrammarError((GrammarError) { CurrNode->Value.Tok.Line, CurrNode->Value.Tok.EndColumn, "Error in ExecuteNdoe: CurrVal malloc failed." });
+			return;
+		}
+
+		strcpy(CurrVal.StringValue, CurrNode->Value.Tok.Value.stringVal);
+		return CurrVal;
 	default:
 		PrintGrammarError((GrammarError) { CurrNode->Value.Tok.Line, CurrNode->Value.Tok.EndColumn, "Error in ExecuteNdoe: Unknown node." });
 		return;
@@ -136,9 +296,9 @@ Value ExecuteNode(Expression* Expr){
 
 }
 
-Value ExecuteFactor(Expression* Expr) {
+Value ExecuteFactor(Expression* Expr, VariableEnvironment *Env) {
 	Factor* CurrFactor = Expr->Value.FactorExpr;
-	Value FactValue = ExecuteExpression(CurrFactor->Value);
+	Value FactValue = ExecuteExpression(CurrFactor->Value, Env);
 	
 	if (CurrFactor->Type == FACTOR_NEGATIVE)
 	{
@@ -157,18 +317,18 @@ Value ExecuteFactor(Expression* Expr) {
 	return FactValue;
 }
 
-Value ExecuteTerm(Expression* Expr) {
+Value ExecuteTerm(Expression* Expr, VariableEnvironment* Env) {
 	Term* CurrTerm = Expr->Value.TermExpr;
-	Value Left = ExecuteExpression(CurrTerm->Left);
-	Value Right = ExecuteExpression(CurrTerm->Right);
+	Value Left = ExecuteExpression(CurrTerm->Left, Env);
+	Value Right = ExecuteExpression(CurrTerm->Right, Env);
 	Value OutValue;
+
+	if (CurrTerm->Type == TERM_NONE) return Left;
 
 	if ((Left.Type != TYPE_INT && Left.Type != TYPE_DOUBLE) || (Right.Type != TYPE_INT && Right.Type != TYPE_DOUBLE)) {
 		PrintGrammarError((GrammarError) { 0, 0, "Error in ExecuteBinary: Binary operation on non binary-accepted values." });
 		return;
 	}
-
-	if (CurrTerm->Type == TERM_NONE) return Left;
 
 	if (Left.Type == TYPE_INT && Right.Type == TYPE_INT) {
 		OutValue.Type = TYPE_INT;
@@ -190,10 +350,10 @@ Value ExecuteTerm(Expression* Expr) {
 	return OutValue;
 }
 
-Value ExecuteBinary(Expression* Expr) {
+Value ExecuteBinary(Expression* Expr, VariableEnvironment* Env) {
 	BinaryExpression* CurrBinary = Expr->Value.BinExpr;
-	Value Left = ExecuteExpression(CurrBinary->Left);
-	Value Right = ExecuteExpression(CurrBinary->Right);
+	Value Left = ExecuteExpression(CurrBinary->Left, Env);
+	Value Right = ExecuteExpression(CurrBinary->Right, Env);
 	Value OutValue;
 
 
@@ -218,38 +378,102 @@ Value ExecuteBinary(Expression* Expr) {
 	return OutValue;
 }
 
-Value ExecuteExpression(Expression* Expr) {
+void ExecuteDeclaration(Expression* Expr, VariableEnvironment* Env) {
+	DeclarationExpression* CurrDecl = Expr->Value.DeclExpr;
+	Variable *CurrVariable = malloc(sizeof(Variable));
+	if(CurrVariable==NULL) PrintGrammarError((GrammarError) { 0, 0, "Error in ExecuteDeclaration: Binary operation on non binary-accepted values." });
+
+
+	CurrVariable->VariableName = malloc(sizeof(char) * strlen(CurrDecl->VarName.Value.stringVal));
+	if (CurrVariable->VariableName == NULL) {
+		PrintGrammarError((GrammarError) { 0, 0, "Error in ExecuteDeclaration: VarName malloc failed." });
+		return;
+	}
+	strcpy(CurrVariable->VariableName, CurrDecl->VarName.Value.stringVal);
+	
+	//Check current and higher ranking environments for the same var name.
+	//Implement it later
+
+	CurrVariable->ForcedValueType = GetForcedVariableType(CurrDecl->VarType);
+
+	CurrVariable->VariableValue = ExecuteExpression(CurrDecl->Value,Env);
+	
+	AddVariableToEnvironment(CurrVariable, Env);
+
+	//PrintVariableEnvironment(Env);
+}
+
+void ExecuteAssignment(Expression* Expr, VariableEnvironment* Env) {
+	AssignmentExpression* CurrAssign = Expr->Value.AssignExpr;
+	Value VarName = ExecuteExpression(CurrAssign->VarName, Env);
+	Value AssignValue = ExecuteExpression(CurrAssign->Value, Env);
+
+	Variable* FoundVariable = SearchEnvironment(VarName.StringValue, Env);
+	if (FoundVariable == NULL) {
+		PrintGrammarError((GrammarError) { 0, 0, "Error in ExecuteAssignment: Variable name doesnt exist." });
+		return;
+	}
+
+	if (FoundVariable->ForcedValueType != -1 && (FoundVariable->ForcedValueType != AssignValue.Type)) {
+		if (!((FoundVariable->ForcedValueType == TYPE_INT && AssignValue.Type == TYPE_DOUBLE) ||
+			(FoundVariable->ForcedValueType == TYPE_DOUBLE && AssignValue.Type == TYPE_INT))) {
+			PrintGrammarError((GrammarError) { 0, 0, "Error in ExecuteAssignment: Variable value isn't coherent." });
+			return;
+		}
+	}
+
+	AssignVariableValue(FoundVariable, AssignValue);
+
+	return;
+}
+
+Value ExecuteExpression(Expression* Expr, VariableEnvironment* Env) {
+	if(Expr==NULL)return (Value) { TYPE_VOID, NULL };
 
 	switch (Expr->Type)
 	{
 	case EXPRESSION_NODE:
-		printf("Node:\n");
-		return ExecuteNode(Expr);
+		printf("Executing Node->");
+		return ExecuteNode(Expr, Env);
 	case EXPRESSION_FACTOR:
-		printf("Factor:\n");
-		return ExecuteFactor(Expr);
+		printf("Executing Factor->");
+		return ExecuteFactor(Expr, Env);
 	case EXPRESSION_TERM:
-		printf("Term:\n");
-		return ExecuteTerm(Expr);
+		printf("Executing Term->");
+		return ExecuteTerm(Expr, Env);
 	case EXPRESSION_BINARY:
-		printf("Binary:\n");
-		return ExecuteBinary(Expr);
+		printf("Executing Binary->");
+		return ExecuteBinary(Expr, Env);
+	case EXPRESSION_DECLARATION:
+		printf("Executing Declaration->");
+		ExecuteDeclaration(Expr, Env);
+		break;
+	case EXPRESSION_ASSIGNMENT:
+		printf("Executing Assignment->");
+		ExecuteAssignment(Expr, Env);
+		break;
 	default:
 		printf("default");
 		break;
 	}
 
-	return;
+	return (Value){TYPE_VOID, NULL};
 }
 
 void Execute() {
+	printf("\n");
 	AdvanceExpression();
-	GlobalEnvironment = (VariableEnvironment){ NULL, NULL };
+	GlobalEnvironment = CreateEmptyEnvironment(NULL);
 
 	while (EndOfExpressions == false) {
-		printf("\nCurrent Expression Type: %d\n", CurrExpression->Type);
-		PrintValue(ExecuteExpression(CurrExpression));
-		printf(" ");
+		Value RetV = ExecuteExpression(CurrExpression, &GlobalEnvironment);
+		printf("\n");
+		if (RetV.Type != TYPE_VOID) {
+			PrintValue(RetV);
+			printf("\n");
+		}
 		AdvanceExpression();
 	}
+
+	PrintVariableEnvironment(&GlobalEnvironment);
 }

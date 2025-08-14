@@ -48,6 +48,20 @@ static const char* decl_var_type_to_str(DeclarationVariableType t) {
 	}
 }
 
+void PrintVariableType(DeclarationVariableType type) {
+	switch (type) {
+	case VARIABLE_INT:    printf("int"); break;
+	case VARIABLE_DOUBLE: printf("double"); break;
+	case VARIABLE_STRING: printf("string"); break;
+	case VARIABLE_BOOL:   printf("bool"); break;
+	case VARIABLE_ARRAY:  printf("array"); break;
+	case VARIABLE_CUSTOM: printf("custom"); break;
+	case VARIABLE_AUTO:   printf("auto"); break;
+	case VARIABLE_NONE:   printf("none"); break;
+	default:              printf("unknown"); break;
+	}
+}
+
 void print_expression(Expression* expr);
 
 void PrintFunctionType(FunctionReturnInfo* retInfo) {
@@ -200,11 +214,7 @@ void print_decl_expr(DeclarationExpression* d) {
 	// keyword
 	printf("VAR ");
 
-	// wide: include tipo esplicito
-	if (d->ExprType == DECLARATION_WITH_TYPE) {
-		printf("%s", decl_var_type_to_str(d->VarType));
-	}
-	else printf("AUTO");
+	PrintVariableType(d->VarType);
 
 	// spazio e nome
 	printf(" ");

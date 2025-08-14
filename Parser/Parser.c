@@ -202,14 +202,13 @@ Expression* MakeBinExpr(BinaryExpressionType Type, Expression* Left, Expression*
 	return MakeExpression(Value, EXPRESSION_BINARY);
 }
 
-Expression* MakeDeclExpr(DeclarationExpressionType ExprType, DeclarationVariableType VarType, TOKEN VarName, Expression* Value) {
+Expression* MakeDeclExpr(DeclarationVariableType VarType, TOKEN VarName, Expression* Value) {
 	DeclarationExpression* CurrDeclExpression = malloc(sizeof(DeclarationExpression));
 	if (CurrDeclExpression == NULL) {
 		PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in MakeDeclExpr: CurrDeclExpression malloc failed." });
 		return NULL;
 	}
 
-	CurrDeclExpression->ExprType = ExprType;
 	CurrDeclExpression->VarType = VarType;
 	CurrDeclExpression->VarName = VarName;
 	CurrDeclExpression->Value = Value;
@@ -590,14 +589,14 @@ Expression* DeclTypeExprParse() {
 	if (CurrToken.OpKwValue != SEP_EQUALS) {
 		//Added Rparen for function arguments. Remove that if it causes problems. Extensive tests needed.
 		if (CurrToken.OpKwValue != SEP_SEMICOLON && CurrToken.OpKwValue != SEP_COMMA && CurrToken.OpKwValue!=SEP_RPAREN) PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in DeclTypeExprParse: Missing ';'." });
-		return MakeDeclExpr(DECLARATION_WITH_TYPE, Type, VarName, NULL);
+		return MakeDeclExpr(Type, VarName, NULL);
 	}
 
 	Advance();
 
 	Expression* Value = ExpressionParse();
 
-	return MakeDeclExpr(DECLARATION_WITH_TYPE, Type, VarName, Value);
+	return MakeDeclExpr(Type, VarName, Value);
 }
 
 Expression* DeclAutoExprParse() {
@@ -610,7 +609,7 @@ Expression* DeclAutoExprParse() {
 
 	Expression* Value = ExpressionParse();
 
-	return MakeDeclExpr(DECLARATION_AUTO, VARIABLE_AUTO, VarName, Value);
+	return MakeDeclExpr(VARIABLE_AUTO, VarName, Value);
 
 	return NULL;
 }

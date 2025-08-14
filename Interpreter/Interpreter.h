@@ -7,7 +7,7 @@ typedef enum E_VariableType {
 	TYPE_BOOL,
 	TYPE_ARRAY,
 	TYPE_STRUCT,
-	TYPE_VOID
+	TYPE_VOID,
 } ValueType;
 
 typedef struct S_Value {
@@ -24,14 +24,17 @@ typedef struct S_Value {
 
 typedef struct S_Variable {
 	char* VariableName;
+	ValueType ForcedValueType;
 	Value VariableValue;
 } Variable;
 
 typedef struct S_VariableEnvironment {
 	Variable* Variables;
+	int VariablesSize;
+	int LastVarIndex;
 	struct VariableEnvironment* ParentEnvironment;
 } VariableEnvironment;
 
-void Execute();
+Value ExecuteExpression(Expression* Expr, VariableEnvironment* Env);
 
-Value ExecuteExpression();
+void Execute();

@@ -14,7 +14,7 @@ typedef enum {
 	NODE_IDENTIFIER,
 	NODE_CALL,
 	NODE_INDEX_ACCESS,
-	NODE_GROUPING,
+	NODE_GROUPING, //done
 	NODE_RETURN,
 	NODE_BLOCK
 } NodeType;
@@ -32,15 +32,15 @@ typedef enum {
 } TermType;
 
 typedef enum {
+	EXPRESSION_NODE,
+	EXPRESSION_TERM,
+	EXPRESSION_FACTOR,
 	EXPRESSION_BINARY,
 	EXPRESSION_DECLARATION,
 	EXPRESSION_ASSIGNMENT,
-	EXPRESSION_TERM,
-	EXPRESSION_FACTOR,
 	EXPRESSION_IF,
 	EXPRESSION_WHILE,
-	EXPRESSION_FUNC,
-	EXPRESSION_NODE
+	EXPRESSION_FUNC
 } ExpressionType;
 
 typedef enum {
@@ -56,11 +56,6 @@ typedef enum {
 	BINARY_OR,
 	BINARY_NONE
 } BinaryExpressionType;
-
-typedef enum {
-	DECLARATION_AUTO,
-	DECLARATION_WITH_TYPE
-} DeclarationExpressionType;
 
 typedef enum {
 	VARIABLE_INT,
@@ -146,7 +141,6 @@ typedef struct S_BinExpr {
 } BinaryExpression;
 
 typedef struct S_DeclExpr {
-	DeclarationExpressionType ExprType;
 	DeclarationVariableType VarType;
 	TOKEN VarName;
 	struct Expression* Value;
