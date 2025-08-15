@@ -18,6 +18,7 @@ void PrintValue(Value v) {
 		break;
 
 	case TYPE_STRING:
+	case TYPE_IDENTIFIER:
 		printf("\"%s\"", v.StringValue ? v.StringValue : "(null)");
 		break;
 
@@ -102,7 +103,28 @@ void AdvanceExpression() {
 	ExprFirst = ExprFirst->Next;
 }
 
-int OperateIntValues(int LValue, int RValue, BinaryExpressionType Operator) {
+bool OperateStringValues(char* LValue, char* RValue, BinaryExpressionType Operator) {
+	if (LValue == NULL || RValue == NULL) return false;
+
+	int Compared = strcmp(LValue, RValue);
+
+	switch (Operator) {
+	case BINARY_LESS:     return Compared < 0;
+	case BINARY_GREATER:  return Compared > 0;
+	case BINARY_LOE:      return Compared <= 0;
+	case BINARY_GOE:      return Compared >= 0;
+	case BINARY_EQUAL:    return Compared == 0;
+	case BINARY_NOE:      return Compared != 0;
+	case BINARY_AND:      return *LValue && *RValue;
+	case BINARY_OR:       return *LValue || *RValue;
+	default:
+		PrintGrammarError((GrammarError) { 0, 0, "Error in ExecuteNode: Not allowed string operation." });
+		return false;
+	}
+}
+
+int OperateIntValues(int LValue, int RValue, BinaryExpressionType Operator, bool* IsBool) {
+	if (Operator != BINARY_ADD && Operator != BINARY_SUB) *IsBool = true;
 	switch (Operator)
 	{
 	case BINARY_ADD: return LValue + RValue;
@@ -121,7 +143,8 @@ int OperateIntValues(int LValue, int RValue, BinaryExpressionType Operator) {
 	}
 }
 
-double OperateDoubleValues(double LValue, double RValue, BinaryExpressionType Operator) {
+double OperateDoubleValues(double LValue, double RValue, BinaryExpressionType Operator, bool* IsBool) {
+	if (Operator != BINARY_ADD && Operator != BINARY_SUB) *IsBool = true;
 	switch (Operator)
 	{
 	case BINARY_ADD: return LValue + RValue;
@@ -280,7 +303,7 @@ Value ExecuteNode(Expression* Expr, VariableEnvironment *Env){
 	//case NODE_BOOL:
 	
 	case NODE_IDENTIFIER:
-		CurrVal.Type = TYPE_VOID;
+		CurrVal.Type = TYPE_IDENTIFIER;
 		CurrVal.StringValue = malloc(sizeof(char) * strlen(CurrNode->Value.Tok.Value.stringVal));
 		if (CurrVal.StringValue == NULL) {
 			PrintGrammarError((GrammarError) { CurrNode->Value.Tok.Line, CurrNode->Value.Tok.EndColumn, "Error in ExecuteNdoe: CurrVal malloc failed." });
@@ -289,6 +312,14 @@ Value ExecuteNode(Expression* Expr, VariableEnvironment *Env){
 
 		strcpy(CurrVal.StringValue, CurrNode->Value.Tok.Value.stringVal);
 		return CurrVal;
+
+	case NODE_BLOCK:
+		for (int i = 0; i < CurrNode->Value.Block.Index; i++)
+		{
+			ExecuteExpression(CurrNode->Value.Block.Expressions[i], Env);
+		}
+		return; //Maybe add a return for node block
+
 	default:
 		PrintGrammarError((GrammarError) { CurrNode->Value.Tok.Line, CurrNode->Value.Tok.EndColumn, "Error in ExecuteNdoe: Unknown node." });
 		return;
@@ -350,27 +381,55 @@ Value ExecuteTerm(Expression* Expr, VariableEnvironment* Env) {
 	return OutValue;
 }
 
+bool CheckForIdentifierVariable(Value* Val, VariableEnvironment* Env, Value* OutVal) {
+	if (Val->Type == TYPE_IDENTIFIER) {
+		Variable* Check = SearchEnvironment(Val->StringValue, Env);
+		if (Check == NULL) {
+			PrintGrammarError((GrammarError) { 0, 0, "Error in ExecuteBinary: Identifier not recognized." });
+			return false;
+		}
+
+		*OutVal = Check->VariableValue;
+		return true;
+	}
+	return false;
+}
+
 Value ExecuteBinary(Expression* Expr, VariableEnvironment* Env) {
 	BinaryExpression* CurrBinary = Expr->Value.BinExpr;
 	Value Left = ExecuteExpression(CurrBinary->Left, Env);
 	Value Right = ExecuteExpression(CurrBinary->Right, Env);
+
+	CheckForIdentifierVariable(&Left, Env, &Left);
+	CheckForIdentifierVariable(&Right, Env, &Right);
+
 	Value OutValue;
 
-
 	if ((Left.Type != TYPE_INT && Left.Type != TYPE_DOUBLE) || (Right.Type != TYPE_INT && Right.Type != TYPE_DOUBLE)) {
+		if (Left.Type == TYPE_STRING && Right.Type == TYPE_STRING) {
+			OutValue.Type = TYPE_BOOL;
+			OutValue.BoolValue = OperateStringValues(Left.StringValue, Right.StringValue, CurrBinary->Type);
+			return OutValue;
+		}
+
 		PrintGrammarError((GrammarError) { 0, 0, "Error in ExecuteBinary: Binary operation on non binary-accepted values." });
 		return;
 	}
 	
+	bool IsBool = false;
+
 	if (Left.Type == TYPE_INT && Right.Type == TYPE_INT) {
-		OutValue.Type = TYPE_INT;
-		OutValue.IntValue = OperateIntValues(Left.IntValue, Right.IntValue, CurrBinary->Type);
+		OutValue.IntValue = OperateIntValues(Left.IntValue, Right.IntValue, CurrBinary->Type, &IsBool);
+		if (IsBool) OutValue.Type = TYPE_BOOL;
+		else OutValue.Type = TYPE_INT;
 	}
 	else if (Left.Type == TYPE_DOUBLE || Right.Type == TYPE_DOUBLE) {
-		OutValue.Type = TYPE_DOUBLE;
 		double LV = (Left.Type == TYPE_INT) ? (double)Left.IntValue : Left.DoubleValue;
 		double RV = (Right.Type == TYPE_INT) ? (double)Right.IntValue : Right.DoubleValue;
-		OutValue.DoubleValue = OperateDoubleValues(LV, RV, CurrBinary->Type);
+		OutValue.DoubleValue = OperateDoubleValues(LV, RV, CurrBinary->Type, &IsBool);
+		
+		if (IsBool) OutValue.Type = TYPE_BOOL;
+		else OutValue.Type = TYPE_DOUBLE;
 	}
 	
 	
@@ -398,6 +457,13 @@ void ExecuteDeclaration(Expression* Expr, VariableEnvironment* Env) {
 
 	CurrVariable->VariableValue = ExecuteExpression(CurrDecl->Value,Env);
 	
+	Variable* VarSearch = SearchEnvironment(CurrVariable->VariableName, Env);
+
+	if (VarSearch != NULL) {
+		PrintGrammarError((GrammarError) { 0, 0, "Error in ExecuteDeclaration: Var with same name already exists." });
+		return;
+	}
+
 	AddVariableToEnvironment(CurrVariable, Env);
 
 	//PrintVariableEnvironment(Env);
@@ -427,6 +493,46 @@ void ExecuteAssignment(Expression* Expr, VariableEnvironment* Env) {
 	return;
 }
 
+void ExecuteIf(Expression* Expr, VariableEnvironment* Env) {
+	IfExpression* CurrIf = Expr->Value.IfExpr;
+	Value ConditionResult = ExecuteExpression(CurrIf->Condition, Env);
+
+
+	if (ConditionResult.Type != TYPE_BOOL) {
+		PrintGrammarError((GrammarError) { 0, 0, "Error in ExecuteIf: Condition is not a bool-return condition." });
+		return;
+	}
+	
+	if (ConditionResult.BoolValue == false) return;//Eventually check Else
+
+	VariableEnvironment IfEnv = CreateEmptyEnvironment(Env);
+
+	ExecuteExpression(CurrIf->IfBlock, &IfEnv);
+	PrintVariableEnvironment(&IfEnv);
+}
+
+void ExecuteWhile(Expression* Expr, VariableEnvironment* Env) {
+	IfExpression* CurrWhile = Expr->Value.WhileExpr;
+	Value ConditionResult = ExecuteExpression(CurrWhile->Condition, Env);
+
+
+	if (ConditionResult.Type != TYPE_BOOL) {
+		PrintGrammarError((GrammarError) { 0, 0, "Error in ExecuteWhile: Condition is not a bool-return condition." });
+		return;
+	}
+
+	if (ConditionResult.BoolValue == false) return;//Eventually check Else
+
+	VariableEnvironment WhileEnv = CreateEmptyEnvironment(Env);
+
+	while (ConditionResult.BoolValue == true) {
+		ExecuteExpression(CurrWhile->IfBlock, &WhileEnv);
+		ConditionResult = ExecuteExpression(CurrWhile->Condition, Env);
+		//PrintVariableEnvironment(&WhileEnv); //This, for debug must be placed here: everytime it get's reset.
+		WhileEnv = CreateEmptyEnvironment(Env);
+	}
+}
+
 Value ExecuteExpression(Expression* Expr, VariableEnvironment* Env) {
 	if(Expr==NULL)return (Value) { TYPE_VOID, NULL };
 
@@ -452,6 +558,13 @@ Value ExecuteExpression(Expression* Expr, VariableEnvironment* Env) {
 		printf("Executing Assignment->");
 		ExecuteAssignment(Expr, Env);
 		break;
+	case EXPRESSION_IF:
+		printf("Executing If->");
+		ExecuteIf(Expr, Env);
+		break;
+	case EXPRESSION_WHILE:
+		printf("Executing While->");
+		ExecuteWhile(Expr, Env);
 	default:
 		printf("default");
 		break;
@@ -459,6 +572,8 @@ Value ExecuteExpression(Expression* Expr, VariableEnvironment* Env) {
 
 	return (Value){TYPE_VOID, NULL};
 }
+
+
 
 void Execute() {
 	printf("\n");

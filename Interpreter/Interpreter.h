@@ -8,6 +8,7 @@ typedef enum E_VariableType {
 	TYPE_ARRAY,
 	TYPE_STRUCT,
 	TYPE_VOID,
+	TYPE_IDENTIFIER
 } ValueType;
 
 typedef struct S_Value {

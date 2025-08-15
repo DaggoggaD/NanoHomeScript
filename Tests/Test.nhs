@@ -1,7 +1,11 @@
-var AutomaticTest = 7;
-AutomaticTest = 3;
-AutomaticTest = "Will Become A String";
+var i = 0;
+var b = 0;
 
-var:int IntTest = 3;
-IntTest = 2;
-IntTest = 0.1;
+while i < 10 {
+	if(i >= 5){
+		b = b + 1;
+		var myint = 5;
+	}
+	var mystring = "This is a string!";
+	i = i + 1;
+}

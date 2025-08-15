@@ -4,14 +4,13 @@
 #define WHILE_FUNCTION 1
 
 
-
 //ENUMERATORS
 typedef enum {
 	NODE_NUMBER, //done
 	NODE_STRING, //done
 	NODE_BOOL, //tbli
 	NODE_NULL, 
-	NODE_IDENTIFIER,
+	NODE_IDENTIFIER, //done
 	NODE_CALL,
 	NODE_INDEX_ACCESS,
 	NODE_GROUPING, //done
