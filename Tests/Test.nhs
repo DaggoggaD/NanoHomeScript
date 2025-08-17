@@ -1,21 +1,6 @@
-func (array,void,int,double,string,array) myfunc(var:int a, var:double b, var:string c, var:array d, var:int IdentifierTest){
+func (array,void,int,double,string,array) myfunc(var:int a, var:double b, var:string c){
 	var e = a + b;
-	var f = (1+3*2)/5 + 4 / 3;
-	var Arr = {1,2,3,4,5;};
-	return (Arr, void, 1,1.2,"String return", Arr);
+	var f = "anotherTest";
 };
 
-var outi = 0;
-var outb = 0;
-var a = 3;
-var:int test;
-var:int test2 = 2;
-
-while outi < 10 {
-	if(outi >= 5){
-		outb = outb + 1;
-		var myint = 5;
-	}
-	var mystring = "This is a string!";
-	outi = outi + 1;
-}
+myfunc(1,1.2,"andrea");

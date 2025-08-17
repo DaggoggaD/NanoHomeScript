@@ -33,6 +33,11 @@ typedef struct S_VariableEnvironment {
 	Variable* Variables;
 	int VariablesSize;
 	int LastVarIndex;
+
+	struct S_Function* Functions;
+	int FunctionsSize;
+	int LastFuncIndex;
+
 	struct VariableEnvironment* ParentEnvironment;
 } VariableEnvironment;
 
@@ -56,6 +61,9 @@ typedef struct S_Function {
 
 } Function;
 
+
 Value ExecuteExpression(Expression* Expr, VariableEnvironment* Env);
 
 void Execute();
+
+void PrintVariableEnvironment(const VariableEnvironment* env);

@@ -74,28 +74,10 @@ void PrintVariable(const Variable* var) {
 	printf("\n");
 }
 
-void PrintVariableEnvironment(const VariableEnvironment* env) {
-	if (!env) return;
-
-	printf("\n\033[1;34m=== Variable Environment ===\033[0m\n");
-	printf("Variables count: %d\n", env->LastVarIndex);
-
-	for (int i = 0; i < env->LastVarIndex; i++) {
-		printf("[%d] ", i);
-		PrintVariable(&env->Variables[i]);
-	}
-
-	if (env->ParentEnvironment) {
-		printf("--- Parent Environment ---\n");
-		PrintVariableEnvironment(env->ParentEnvironment);
-	}
-	printf("\033[1;34m=== End of Variable Environment ===\033[0m\n");
-}
-
 void PrintFunction(const Function* func) {
 	if (!func) return;
 
-	printf("\n\033[1;32m=== Function ===\033[0m\n");
+	printf("\033[1;32m=== Function ===\033[0m\n");
 	printf("Function Name: %s\n", func->FunctionName ? func->FunctionName : "(null)");
 
 	// Return types
@@ -130,7 +112,35 @@ void PrintFunction(const Function* func) {
 	printf("\033[1;32m=== End of Function ===\033[0m\n");
 }
 
+void PrintVariableEnvironment(const VariableEnvironment* env) {
+	if (!env) return;
+
+	printf("\n\033[1;34m=== Variable Environment ===\033[0m\n");
+	printf("Variables count: %d\n", env->LastVarIndex);
+
+	for (int i = 0; i < env->LastVarIndex; i++) {
+		printf("[%d] ", i);
+		PrintVariable(&env->Variables[i]);
+	}
+
+	printf("Functions count: %d\n", env->LastFuncIndex);
+
+	for (int i = 0; i < env->LastFuncIndex; i++)
+	{
+		printf("[%d] ", i);
+		PrintFunction(&env->Functions[i]);
+	}
+	/*
+	if (env->ParentEnvironment) {
+		printf("--- Parent Environment ---\n");
+		PrintVariableEnvironment(env->ParentEnvironment);
+	}*/
+	printf("\033[1;34m=== End of Variable Environment ===\033[0m\n");
+}
+
 ///END OF PRINTING METHODS
+
+//========INTERPRETER UTILITIES========
 
 void AdvanceExpression() {
 	if (ExprFirst == NULL) {
@@ -177,7 +187,7 @@ int OperateIntValues(int LValue, int RValue, BinaryExpressionType Operator, bool
 	case BINARY_OR: return LValue || RValue;
 	default:
 		PrintGrammarError((GrammarError) { 0, 0, "Error in ExecuteNdoe: Unknown node." });
-		return;
+		return 0;
 	}
 }
 
@@ -197,7 +207,7 @@ double OperateDoubleValues(double LValue, double RValue, BinaryExpressionType Op
 	case BINARY_OR: return LValue || RValue;
 	default:
 		PrintGrammarError((GrammarError) { 0, 0, "Error in ExecuteNdoe: Unknown node." });
-		return;
+		return 0.0f;
 	}
 }
 
@@ -205,7 +215,10 @@ VariableEnvironment CreateEmptyEnvironment(VariableEnvironment *Parent) {
 	Variable* Vars = malloc(sizeof(Variable));
 	if(Vars == NULL) PrintGrammarError((GrammarError) { 0, 0, "Error in CreateEmptyEnv: Vars malloc failed." });
 
-	return (VariableEnvironment) {Vars, .VariablesSize = 1, .LastVarIndex = 0, Parent };
+	Function* Functions = malloc(sizeof(Function));
+	if(Functions == NULL)PrintGrammarError((GrammarError) { 0, 0, "Error in CreateEmptyEnv: Functions malloc failed." });
+
+	return (VariableEnvironment) {Vars, .VariablesSize = 1, .LastVarIndex = 0, Functions, .FunctionsSize = 1, .LastFuncIndex=0,Parent };
 }
 
 void AddVariableToEnvironment(Variable *Var, VariableEnvironment *Env) {
@@ -216,12 +229,39 @@ void AddVariableToEnvironment(Variable *Var, VariableEnvironment *Env) {
 
 	if (Env->LastVarIndex >= Env->VariablesSize) {
 		Env->VariablesSize++;
-		Env->Variables = realloc(Env->Variables, sizeof(Variable) * Env->VariablesSize);
+
+		Variable* Temp = realloc(Env->Variables, sizeof(Variable) * Env->VariablesSize);
+
+		if (Temp == NULL) {
+			PrintGrammarError((GrammarError) { 0, 0, "Error in AddVariableToEnvironment: Vars realloc failed." });
+			return;
+		}
+		Env->Variables = Temp;
 		if(Env->Variables == NULL) PrintGrammarError((GrammarError) { 0, 0, "Error in AddVariableToEnvironment: Vars malloc failed." });
 	}
 }
 
-Variable* SearchEnvironment(char* VarName, VariableEnvironment *Env){
+void AddFunctionToEnvironment(Function *Func, VariableEnvironment *Env) {
+	Env->Functions[Env->LastFuncIndex] = *Func;
+	Env->LastFuncIndex++;
+
+	//Add search parent to check if name already exists
+
+	if (Env->LastFuncIndex >= Env->FunctionsSize) {
+		Env->FunctionsSize++;
+
+		Function* Temp = realloc(Env->Functions, sizeof(Function) * Env->FunctionsSize);
+		if (Temp == NULL) {
+			PrintGrammarError((GrammarError) { 0, 0, "Error in AddFunctionToEnvironment: Funcs realloc failed." });
+			return;
+		}
+
+		Env->Functions = Temp;
+		if (Env->Functions == NULL) PrintGrammarError((GrammarError) { 0, 0, "Error in AddFunctionToEnvironment: Functions malloc failed." });
+	}
+}
+
+Variable* VarSearchEnvironment(char* VarName, VariableEnvironment *Env){
 	VariableEnvironment* CurrEnv = Env;
 
 	while (CurrEnv!=NULL)
@@ -235,6 +275,23 @@ Variable* SearchEnvironment(char* VarName, VariableEnvironment *Env){
 		CurrEnv = CurrEnv->ParentEnvironment;
 	}
 	
+	return NULL;
+}
+
+Function* FunctionSearchEnvironment(char* FuncName, VariableEnvironment* Env) {
+	VariableEnvironment* CurrEnv = Env;
+
+	while (CurrEnv != NULL)
+	{
+		for (int i = 0; i < CurrEnv->LastFuncIndex; i++)
+		{
+			if (strcmp(FuncName, CurrEnv->Functions[i].FunctionName) == 0) {
+				return &(CurrEnv->Functions[i]);
+			}
+		}
+		CurrEnv = CurrEnv->ParentEnvironment;
+	}
+
 	return NULL;
 }
 
@@ -285,7 +342,13 @@ void AssignVariableValue(Variable* Var, Value Val) {
 			return;
 		}
 
-		Var->VariableValue.StringValue = realloc(Var->VariableValue.StringValue, sizeof(char) * strlen(Val.StringValue));
+		char* Temp = realloc(Var->VariableValue.StringValue, sizeof(char) * (strlen(Val.StringValue) + 1));
+		if (Temp == NULL) {
+			PrintGrammarError((GrammarError) { 0, 0, "Error in AssignVariableValue: Realloc failed." });
+			return;
+		}
+
+		Var->VariableValue.StringValue = Temp;
 		if (Var->VariableValue.StringValue == NULL) {
 			PrintGrammarError((GrammarError) { 0, 0, "Error in AssignVariableValue: StringValue malloc failed." });
 			return;
@@ -307,11 +370,67 @@ void AssignVariableValue(Variable* Var, Value Val) {
 
 }
 
+ValueType GetFuncReturnType(FunctionReturnInfo* Info, Value* StructCaseName, VariableEnvironment* Env) {
+	switch (Info->Type) {
+	case FUNCTION_INT:    return TYPE_INT;
+	case FUNCTION_DOUBLE: return TYPE_DOUBLE;
+	case FUNCTION_STRING: return TYPE_STRING;
+	case FUNCTION_BOOL:   return TYPE_BOOL;
+	case FUNCTION_ARRAY:  return TYPE_ARRAY;
+	case FUNCTION_CUSTOM:
+		if (Info->Value != NULL) {
+			*StructCaseName = ExecuteExpression(Info->Value, Env);
+			return TYPE_STRUCT;
+		}
+		PrintGrammarError((GrammarError) { 0, 0, "Error in GetFuncReturnType: Struct not recognized." });
+		return;
+	case FUNCTION_VOID:   return TYPE_VOID;
+	default:
+		PrintGrammarError((GrammarError) { 0, 0, "Error in GetFuncReturnType: Type not recognized." });
+		return;
+
+	}
+}
+
+bool CheckForIdentifierVariable(Value* Val, VariableEnvironment* Env, Value* OutVal) {
+	if (Val->Type == TYPE_IDENTIFIER) {
+		Variable* Check = VarSearchEnvironment(Val->StringValue, Env);
+		if (Check == NULL) {
+			PrintGrammarError((GrammarError) { 0, 0, "Error in ExecuteBinary: Identifier not recognized." });
+			return false;
+		}
+
+		*OutVal = Check->VariableValue;
+		return true;
+	}
+	return false;
+}
+
+//========EXECUTION METHODS========
+
+void ExecuteFunctionCall(char* FuncName, FunctionReturnInfo** Args, int ArgsN, VariableEnvironment* Env) {
+	Function* Func = FunctionSearchEnvironment(FuncName, Env);
+
+	if (Func == NULL) {
+		PrintGrammarError((GrammarError) { 0, 0, "Error in ExecuteFunctionCall: No such named function." });
+		return;
+	}
+
+	if(ArgsN!=Func->ArgumentsN) PrintGrammarError((GrammarError) { 0, 0, "Error in ExecuteFunctionCall: Uncoherent number of argoments passed." });
+	
+	for (int i = 0; i < ArgsN; i++)
+	{
+		Value CurrArgValue = ExecuteExpression(Args[i]->Value, Env);
+		Func->FuncEnvironment.Variables[i].VariableValue = CurrArgValue;
+	}
+
+	ExecuteExpression(Func->ExpressionsBlock, &Func->FuncEnvironment);
+	PrintVariableEnvironment(&Func->FuncEnvironment);
+}
+
 Value ExecuteNode(Expression* Expr, VariableEnvironment *Env){
 	Node* CurrNode = Expr->Value.NodeExpr;
 	Value CurrVal;
-
-
 	switch (CurrNode->Type)
 	{
 	case NODE_NUMBER:
@@ -326,7 +445,7 @@ Value ExecuteNode(Expression* Expr, VariableEnvironment *Env){
 		return CurrVal;
 	case NODE_STRING:
 		CurrVal.Type = TYPE_STRING;
-		CurrVal.StringValue = malloc(sizeof(char) * strlen(CurrNode->Value.Tok.Value.stringVal));
+		CurrVal.StringValue = malloc(sizeof(char) * (strlen(CurrNode->Value.Tok.Value.stringVal)+1));
 		if (CurrVal.StringValue == NULL) {
 			PrintGrammarError((GrammarError) { CurrNode->Value.Tok.Line, CurrNode->Value.Tok.EndColumn, "Error in ExecuteNdoe: CurrVal malloc failed." });
 			return;
@@ -342,10 +461,10 @@ Value ExecuteNode(Expression* Expr, VariableEnvironment *Env){
 	
 	case NODE_IDENTIFIER:
 		CurrVal.Type = TYPE_IDENTIFIER;
-		CurrVal.StringValue = malloc(sizeof(char) * strlen(CurrNode->Value.Tok.Value.stringVal));
+		CurrVal.StringValue = malloc(sizeof(char) * (strlen(CurrNode->Value.Tok.Value.stringVal)+1));
 		if (CurrVal.StringValue == NULL) {
 			PrintGrammarError((GrammarError) { CurrNode->Value.Tok.Line, CurrNode->Value.Tok.EndColumn, "Error in ExecuteNdoe: CurrVal malloc failed." });
-			return;
+			return (Value) { .Type = TYPE_VOID };;
 		}
 
 		strcpy(CurrVal.StringValue, CurrNode->Value.Tok.Value.stringVal);
@@ -356,11 +475,14 @@ Value ExecuteNode(Expression* Expr, VariableEnvironment *Env){
 		{
 			ExecuteExpression(CurrNode->Value.Block.Expressions[i], Env);
 		}
-		return; //Maybe add a return for node block
-
+		return (Value) { .Type = TYPE_VOID }; //Maybe add a return for node block
+	
+	case NODE_CALL:
+		ExecuteFunctionCall(CurrNode->Value.FuncCall.CallNameTok.Value.stringVal, CurrNode->Value.FuncCall.Arguments, CurrNode->Value.FuncCall.ArgumentsNamesCount, Env);
+		return (Value) { .Type = TYPE_VOID };
 	default:
 		PrintGrammarError((GrammarError) { CurrNode->Value.Tok.Line, CurrNode->Value.Tok.EndColumn, "Error in ExecuteNdoe: Unknown node." });
-		return;
+		return (Value) { .Type = TYPE_VOID };
 	}
 
 }
@@ -419,20 +541,6 @@ Value ExecuteTerm(Expression* Expr, VariableEnvironment* Env) {
 	return OutValue;
 }
 
-bool CheckForIdentifierVariable(Value* Val, VariableEnvironment* Env, Value* OutVal) {
-	if (Val->Type == TYPE_IDENTIFIER) {
-		Variable* Check = SearchEnvironment(Val->StringValue, Env);
-		if (Check == NULL) {
-			PrintGrammarError((GrammarError) { 0, 0, "Error in ExecuteBinary: Identifier not recognized." });
-			return false;
-		}
-
-		*OutVal = Check->VariableValue;
-		return true;
-	}
-	return false;
-}
-
 Value ExecuteBinary(Expression* Expr, VariableEnvironment* Env) {
 	BinaryExpression* CurrBinary = Expr->Value.BinExpr;
 	Value Left = ExecuteExpression(CurrBinary->Left, Env);
@@ -483,7 +591,7 @@ void ExecuteDeclaration(Expression* Expr, VariableEnvironment* Env) {
 		return;
 	}
 
-	CurrVariable->VariableName = malloc(sizeof(char) * strlen(CurrDecl->VarName.Value.stringVal));
+	CurrVariable->VariableName = malloc(sizeof(char) * (strlen(CurrDecl->VarName.Value.stringVal)+1));
 	if (CurrVariable->VariableName == NULL) {
 		PrintGrammarError((GrammarError) { 0, 0, "Error in ExecuteDeclaration: VarName malloc failed." });
 		return;
@@ -497,7 +605,7 @@ void ExecuteDeclaration(Expression* Expr, VariableEnvironment* Env) {
 
 	CurrVariable->VariableValue = ExecuteExpression(CurrDecl->Value,Env);
 	
-	Variable* VarSearch = SearchEnvironment(CurrVariable->VariableName, Env);
+	Variable* VarSearch = VarSearchEnvironment(CurrVariable->VariableName, Env);
 
 	if (VarSearch != NULL) {
 		PrintGrammarError((GrammarError) { 0, 0, "Error in ExecuteDeclaration: Var with same name already exists." });
@@ -514,7 +622,7 @@ void ExecuteAssignment(Expression* Expr, VariableEnvironment* Env) {
 	Value VarName = ExecuteExpression(CurrAssign->VarName, Env);
 	Value AssignValue = ExecuteExpression(CurrAssign->Value, Env);
 
-	Variable* FoundVariable = SearchEnvironment(VarName.StringValue, Env);
+	Variable* FoundVariable = VarSearchEnvironment(VarName.StringValue, Env);
 	if (FoundVariable == NULL) {
 		PrintGrammarError((GrammarError) { 0, 0, "Error in ExecuteAssignment: Variable name doesnt exist." });
 		return;
@@ -548,7 +656,6 @@ void ExecuteIf(Expression* Expr, VariableEnvironment* Env) {
 	VariableEnvironment IfEnv = CreateEmptyEnvironment(Env);
 
 	ExecuteExpression(CurrIf->IfBlock, &IfEnv);
-	PrintVariableEnvironment(&IfEnv);
 }
 
 void ExecuteWhile(Expression* Expr, VariableEnvironment* Env) {
@@ -568,30 +675,8 @@ void ExecuteWhile(Expression* Expr, VariableEnvironment* Env) {
 	while (ConditionResult.BoolValue == true) {
 		ExecuteExpression(CurrWhile->IfBlock, &WhileEnv);
 		ConditionResult = ExecuteExpression(CurrWhile->Condition, Env);
-		PrintVariableEnvironment(&WhileEnv); //This, for debug must be placed here: everytime it get's reset.
+		//PrintVariableEnvironment(&WhileEnv); //This, for debug must be placed here: everytime it get's reset.
 		WhileEnv = CreateEmptyEnvironment(Env);
-	}
-}
-
-ValueType GetFuncReturnType(FunctionReturnInfo* Info, Value *StructCaseName, VariableEnvironment* Env) {
-	switch (Info->Type) {
-	case FUNCTION_INT:    return TYPE_INT;
-	case FUNCTION_DOUBLE: return TYPE_DOUBLE;
-	case FUNCTION_STRING: return TYPE_STRING;
-	case FUNCTION_BOOL:   return TYPE_BOOL;
-	case FUNCTION_ARRAY:  return TYPE_ARRAY;
-	case FUNCTION_CUSTOM:
-		if (Info->Value != NULL) {
-			*StructCaseName = ExecuteExpression(Info->Value, Env);
-			return TYPE_STRUCT;
-		}
-		PrintGrammarError((GrammarError) { 0, 0, "Error in GetFuncReturnType: Struct not recognized." });
-		return;
-	case FUNCTION_VOID:   return TYPE_VOID;
-	default:
-		PrintGrammarError((GrammarError) { 0, 0, "Error in GetFuncReturnType: Type not recognized." });
-		return;
-
 	}
 }
 
@@ -605,7 +690,7 @@ void ExecuteFunctionExpression(Expression* Expr, VariableEnvironment* Env) {
 	}
 
 	Func->FuncEnvironment = CreateEmptyEnvironment(Env);
-	Func->FunctionName = malloc(sizeof(char) * strlen(CurrFuncExpr->FuncName.Value.stringVal));
+	Func->FunctionName = malloc(sizeof(char) * (strlen(CurrFuncExpr->FuncName.Value.stringVal)+1));
 	if(Func->FunctionName==NULL) {
 		PrintGrammarError((GrammarError) { 0, 0, "Error in ExecuteFunctionExpression: FunctionName malloc failed." });
 		return;
@@ -627,11 +712,11 @@ void ExecuteFunctionExpression(Expression* Expr, VariableEnvironment* Env) {
 
 	ExecuteExpression(CurrFuncExpr->Arguments, &Func->FuncEnvironment);
 	Func->ArgumentsN = Func->FuncEnvironment.LastVarIndex;
-
 	Func->ExpressionsBlock = CurrFuncExpr->FuncBlock;
+
 	Func->LastOutValue = (Value){ TYPE_VOID, NULL };
 
-	PrintFunction(Func);
+	AddFunctionToEnvironment(Func, Env);
 }
 
 Value ExecuteExpression(Expression* Expr, VariableEnvironment* Env) {
@@ -678,8 +763,6 @@ Value ExecuteExpression(Expression* Expr, VariableEnvironment* Env) {
 
 	return (Value){TYPE_VOID, NULL};
 }
-
-
 
 void Execute() {
 	printf("\n");
