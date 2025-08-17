@@ -169,10 +169,10 @@ typedef struct S_FunctionReturnInfo {
 } FunctionReturnInfo;
 
 typedef struct S_FunctionExpression {
+	TOKEN FuncName;
+	
 	FunctionReturnInfo** ReturnTypes;
 	int ReturnTypesCount;
-	
-	TOKEN FuncName;
 
 	struct Expression* Arguments;
 	struct Expression* FuncBlock;

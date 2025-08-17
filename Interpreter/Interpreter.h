@@ -36,6 +36,26 @@ typedef struct S_VariableEnvironment {
 	struct VariableEnvironment* ParentEnvironment;
 } VariableEnvironment;
 
+
+typedef struct S_FunctionReturnType {
+	ValueType Type;
+	Value StructCaseName;
+} FunctionReturnType;
+
+typedef struct S_Function {
+	char* FunctionName;
+
+	FunctionReturnType* ReturnTypes;
+	int ReturnTypesN;
+
+	VariableEnvironment FuncEnvironment; //The first ArgumentsN elements are the arguments
+	int ArgumentsN;
+
+	Expression* ExpressionsBlock;
+	Value LastOutValue;
+
+} Function;
+
 Value ExecuteExpression(Expression* Expr, VariableEnvironment* Env);
 
 void Execute();

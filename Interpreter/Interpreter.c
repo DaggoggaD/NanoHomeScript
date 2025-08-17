@@ -92,6 +92,44 @@ void PrintVariableEnvironment(const VariableEnvironment* env) {
 	printf("\033[1;34m=== End of Variable Environment ===\033[0m\n");
 }
 
+void PrintFunction(const Function* func) {
+	if (!func) return;
+
+	printf("\n\033[1;32m=== Function ===\033[0m\n");
+	printf("Function Name: %s\n", func->FunctionName ? func->FunctionName : "(null)");
+
+	// Return types
+	printf("Return Types (%d): ", func->ReturnTypesN);
+	if (func->ReturnTypes && func->ReturnTypesN > 0) {
+		for (int i = 0; i < func->ReturnTypesN; i++) {
+			printf("%s", ValueTypeToString(func->ReturnTypes[i].Type));
+			if (i < func->ReturnTypesN - 1) printf(", ");
+		}
+	}
+	else {
+		printf("(none)");
+	}
+	printf("\n");
+
+	// Arguments
+	printf("Arguments (%d):\n", func->ArgumentsN);
+	for (int i = 0; i < func->ArgumentsN; i++) {
+		printf("  Arg[%d] ", i);
+		PrintVariable(&func->FuncEnvironment.Variables[i]);
+	}
+
+	// Environment
+	printf("\n\033[1;34m--- Function Environment ---\033[0m\n");
+	PrintVariableEnvironment(&func->FuncEnvironment);
+
+	// Last output value
+	printf("\nLastOutValue: ");
+	PrintValue(func->LastOutValue);
+	printf("\n");
+
+	printf("\033[1;32m=== End of Function ===\033[0m\n");
+}
+
 ///END OF PRINTING METHODS
 
 void AdvanceExpression() {
@@ -440,8 +478,10 @@ Value ExecuteBinary(Expression* Expr, VariableEnvironment* Env) {
 void ExecuteDeclaration(Expression* Expr, VariableEnvironment* Env) {
 	DeclarationExpression* CurrDecl = Expr->Value.DeclExpr;
 	Variable *CurrVariable = malloc(sizeof(Variable));
-	if(CurrVariable==NULL) PrintGrammarError((GrammarError) { 0, 0, "Error in ExecuteDeclaration: Binary operation on non binary-accepted values." });
-
+	if (CurrVariable == NULL) {
+		PrintGrammarError((GrammarError) { 0, 0, "Error in ExecuteDeclaration: Binary operation on non binary-accepted values." });
+		return;
+	}
 
 	CurrVariable->VariableName = malloc(sizeof(char) * strlen(CurrDecl->VarName.Value.stringVal));
 	if (CurrVariable->VariableName == NULL) {
@@ -528,9 +568,70 @@ void ExecuteWhile(Expression* Expr, VariableEnvironment* Env) {
 	while (ConditionResult.BoolValue == true) {
 		ExecuteExpression(CurrWhile->IfBlock, &WhileEnv);
 		ConditionResult = ExecuteExpression(CurrWhile->Condition, Env);
-		//PrintVariableEnvironment(&WhileEnv); //This, for debug must be placed here: everytime it get's reset.
+		PrintVariableEnvironment(&WhileEnv); //This, for debug must be placed here: everytime it get's reset.
 		WhileEnv = CreateEmptyEnvironment(Env);
 	}
+}
+
+ValueType GetFuncReturnType(FunctionReturnInfo* Info, Value *StructCaseName, VariableEnvironment* Env) {
+	switch (Info->Type) {
+	case FUNCTION_INT:    return TYPE_INT;
+	case FUNCTION_DOUBLE: return TYPE_DOUBLE;
+	case FUNCTION_STRING: return TYPE_STRING;
+	case FUNCTION_BOOL:   return TYPE_BOOL;
+	case FUNCTION_ARRAY:  return TYPE_ARRAY;
+	case FUNCTION_CUSTOM:
+		if (Info->Value != NULL) {
+			*StructCaseName = ExecuteExpression(Info->Value, Env);
+			return TYPE_STRUCT;
+		}
+		PrintGrammarError((GrammarError) { 0, 0, "Error in GetFuncReturnType: Struct not recognized." });
+		return;
+	case FUNCTION_VOID:   return TYPE_VOID;
+	default:
+		PrintGrammarError((GrammarError) { 0, 0, "Error in GetFuncReturnType: Type not recognized." });
+		return;
+
+	}
+}
+
+void ExecuteFunctionExpression(Expression* Expr, VariableEnvironment* Env) {
+	FunctionExpression* CurrFuncExpr = Expr->Value.FuncExpr;
+	Function* Func = malloc(sizeof(Function));
+
+	if (Func == NULL) {
+		PrintGrammarError((GrammarError) { 0, 0, "Error in ExecuteFunctionExpression: Func malloc failed." });
+		return;
+	}
+
+	Func->FuncEnvironment = CreateEmptyEnvironment(Env);
+	Func->FunctionName = malloc(sizeof(char) * strlen(CurrFuncExpr->FuncName.Value.stringVal));
+	if(Func->FunctionName==NULL) {
+		PrintGrammarError((GrammarError) { 0, 0, "Error in ExecuteFunctionExpression: FunctionName malloc failed." });
+		return;
+	}
+	strcpy(Func->FunctionName, CurrFuncExpr->FuncName.Value.stringVal);
+
+
+	Func->ReturnTypesN = CurrFuncExpr->ReturnTypesCount;
+	Func->ReturnTypes = malloc(sizeof(FunctionReturnType) * Func->ReturnTypesN);
+	if (Func->ReturnTypes == NULL) {
+		PrintGrammarError((GrammarError) { 0, 0, "Error in ExecuteFunctionExpression: ReturnTypes malloc failed." });
+		return;	
+	}
+
+	for (int i = 0; i < CurrFuncExpr->ReturnTypesCount; i++)
+	{
+		Func->ReturnTypes[i].Type = GetFuncReturnType(CurrFuncExpr->ReturnTypes[i], &(Func->ReturnTypes->StructCaseName), Env);
+	}
+
+	ExecuteExpression(CurrFuncExpr->Arguments, &Func->FuncEnvironment);
+	Func->ArgumentsN = Func->FuncEnvironment.LastVarIndex;
+
+	Func->ExpressionsBlock = CurrFuncExpr->FuncBlock;
+	Func->LastOutValue = (Value){ TYPE_VOID, NULL };
+
+	PrintFunction(Func);
 }
 
 Value ExecuteExpression(Expression* Expr, VariableEnvironment* Env) {
@@ -565,6 +666,11 @@ Value ExecuteExpression(Expression* Expr, VariableEnvironment* Env) {
 	case EXPRESSION_WHILE:
 		printf("Executing While->");
 		ExecuteWhile(Expr, Env);
+		break;
+	case EXPRESSION_FUNC:
+		printf("Executing Function Declaration->");
+		ExecuteFunctionExpression(Expr, Env);
+		break;
 	default:
 		printf("default");
 		break;
