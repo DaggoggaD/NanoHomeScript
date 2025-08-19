@@ -27,11 +27,15 @@ void PrintValue(Value v) {
 		break;
 
 	case TYPE_ARRAY:
+	case TYPE_RETURN:
 		printf("[");
 		if (v.ArrayValues) {
-			// Qui servirebbe sapere la lunghezza dell'array
-			// per ora facciamo un placeholder
-			printf("/* array values here */");
+			
+			for (int i = 0; i < v.ArrayValuesLastIndex; i++)
+			{
+				PrintValue(v.ArrayValues[i]);
+				if (i < v.ArrayValuesLastIndex - 1) printf(",");
+			}
 		}
 		printf("]");
 		break;
@@ -57,6 +61,7 @@ const char* ValueTypeToString(ValueType type) {
 	case TYPE_STRING: return "string";
 	case TYPE_BOOL:   return "bool";
 	case TYPE_ARRAY:  return "array";
+	case TYPE_RETURN: return "return";
 	case TYPE_STRUCT: return "struct";
 	case TYPE_VOID:   return "void";
 	default:          return "<unknown>";
@@ -315,11 +320,13 @@ ValueType GetForcedVariableType(DeclarationVariableType Type) {
 }
 
 void AssignVariableValue(Variable* Var, Value Val) {
-
 	switch (Var->ForcedValueType)
 	{
 	case TYPE_INT: 
-		if (Val.Type == TYPE_INT) Var->VariableValue.IntValue = Val.IntValue;
+		if (Val.Type == TYPE_INT) {
+			Var->VariableValue.Type = TYPE_INT;
+			Var->VariableValue.IntValue = Val.IntValue;
+		}
 		else if (Val.Type == TYPE_DOUBLE) Var->VariableValue.IntValue = (int)Val.DoubleValue;
 		else {
 			PrintGrammarError((GrammarError) { 0, 0, "Error in AssignVariableValue: Tried to assign non int/double to int." });
@@ -328,6 +335,7 @@ void AssignVariableValue(Variable* Var, Value Val) {
 		break;
 
 	case TYPE_DOUBLE: 
+		Var->VariableValue.Type = TYPE_DOUBLE;
 		if (Val.Type == TYPE_INT) Var->VariableValue.DoubleValue = (double)Val.IntValue;
 		else if (Val.Type == TYPE_DOUBLE) Var->VariableValue.DoubleValue = Val.DoubleValue;
 		else {
@@ -337,6 +345,7 @@ void AssignVariableValue(Variable* Var, Value Val) {
 		break;
 
 	case TYPE_STRING: 
+		Var->VariableValue.Type = TYPE_STRING;
 		if(Val.Type!=TYPE_STRING) {
 			PrintGrammarError((GrammarError) { 0, 0, "Error in AssignVariableValue: Tried to assign non string to string." });
 			return;
@@ -355,10 +364,24 @@ void AssignVariableValue(Variable* Var, Value Val) {
 		}
 
 		strcpy(Var->VariableValue.StringValue, Val.StringValue);
-
+		break;
 	//case TYPE_BOOL: 
 
-	//case TYPE_ARRAY:
+	case TYPE_ARRAY:
+		Var->VariableValue.Type = TYPE_ARRAY;
+		if(Val.Type!=TYPE_ARRAY) {
+			PrintGrammarError((GrammarError) { 0, 0, "Error in AssignVariableValue: Tried to assign non non array to array." });
+			return;
+		}
+		
+		/*Var->VariableValue.ArrayValues = malloc(sizeof(Value) * Val.ArrayValuesSize);
+		if (Var->VariableValue.ArrayValues == NULL) {
+			PrintGrammarError((GrammarError) { 0, 0, "Error in AssignVariableValue: ArrayValues malloc failed." });
+			return;
+		}*/
+
+		Var->VariableValue = Val;
+		break;
 
 	//case TYPE_STRUCT: 
 
@@ -399,7 +422,7 @@ bool CheckForIdentifierVariable(Value* Val, VariableEnvironment* Env, Value* Out
 			PrintGrammarError((GrammarError) { 0, 0, "Error in ExecuteBinary: Identifier not recognized." });
 			return false;
 		}
-
+		PrintValue(Check->VariableValue);
 		*OutVal = Check->VariableValue;
 		return true;
 	}
@@ -408,13 +431,14 @@ bool CheckForIdentifierVariable(Value* Val, VariableEnvironment* Env, Value* Out
 
 //========EXECUTION METHODS========
 
-void ExecuteFunctionCall(char* FuncName, FunctionReturnInfo** Args, int ArgsN, VariableEnvironment* Env) {
+Value ExecuteFunctionCall(char* FuncName, FunctionReturnInfo** Args, int ArgsN, VariableEnvironment* Env) {
 	Function* Func = FunctionSearchEnvironment(FuncName, Env);
-
 	if (Func == NULL) {
 		PrintGrammarError((GrammarError) { 0, 0, "Error in ExecuteFunctionCall: No such named function." });
 		return;
 	}
+
+	VariableEnvironment SonEnvironment = CreateEmptyEnvironment(&Func->FuncEnvironment);
 
 	if(ArgsN!=Func->ArgumentsN) PrintGrammarError((GrammarError) { 0, 0, "Error in ExecuteFunctionCall: Uncoherent number of argoments passed." });
 	
@@ -424,13 +448,39 @@ void ExecuteFunctionCall(char* FuncName, FunctionReturnInfo** Args, int ArgsN, V
 		Func->FuncEnvironment.Variables[i].VariableValue = CurrArgValue;
 	}
 
-	ExecuteExpression(Func->ExpressionsBlock, &Func->FuncEnvironment);
-	PrintVariableEnvironment(&Func->FuncEnvironment);
+
+	Value RetVal = ExecuteExpression(Func->ExpressionsBlock, &SonEnvironment);
+	if (RetVal.ArrayValuesLastIndex == 1) return RetVal.ArrayValues[0];
+	return RetVal;
+}
+
+void ExecuteArrayAssignment(Value *Res, Value *ArrayValue, bool *IsArray) {
+	//Array assignment
+	if (Res->Type == TYPE_VOID) {
+		*IsArray = false;
+	}
+	else if (*IsArray==true) {
+		ArrayValue->ArrayValues[ArrayValue->ArrayValuesLastIndex] = *Res;
+		ArrayValue->ArrayValuesLastIndex++;
+
+		if (ArrayValue->ArrayValuesLastIndex >= ArrayValue->ArrayValuesSize) {
+			ArrayValue->ArrayValuesSize++;
+			Value* Temp = realloc(ArrayValue->ArrayValues, sizeof(Value) * ArrayValue->ArrayValuesSize);
+			if (Temp == NULL) {
+				PrintGrammarError((GrammarError) { 0, 0, "Error in AddFunctionToEnvironment: Funcs realloc failed." });
+				return;
+			}
+
+			ArrayValue->ArrayValues = Temp;
+		}
+
+	}
 }
 
 Value ExecuteNode(Expression* Expr, VariableEnvironment *Env){
 	Node* CurrNode = Expr->Value.NodeExpr;
 	Value CurrVal;
+
 	switch (CurrNode->Type)
 	{
 	case NODE_NUMBER:
@@ -448,7 +498,7 @@ Value ExecuteNode(Expression* Expr, VariableEnvironment *Env){
 		CurrVal.StringValue = malloc(sizeof(char) * (strlen(CurrNode->Value.Tok.Value.stringVal)+1));
 		if (CurrVal.StringValue == NULL) {
 			PrintGrammarError((GrammarError) { CurrNode->Value.Tok.Line, CurrNode->Value.Tok.EndColumn, "Error in ExecuteNdoe: CurrVal malloc failed." });
-			return;
+			return (Value) { .Type = TYPE_VOID };
 		}
 
 		strcpy(CurrVal.StringValue, CurrNode->Value.Tok.Value.stringVal);
@@ -464,22 +514,71 @@ Value ExecuteNode(Expression* Expr, VariableEnvironment *Env){
 		CurrVal.StringValue = malloc(sizeof(char) * (strlen(CurrNode->Value.Tok.Value.stringVal)+1));
 		if (CurrVal.StringValue == NULL) {
 			PrintGrammarError((GrammarError) { CurrNode->Value.Tok.Line, CurrNode->Value.Tok.EndColumn, "Error in ExecuteNdoe: CurrVal malloc failed." });
-			return (Value) { .Type = TYPE_VOID };;
+			return (Value) { .Type = TYPE_VOID };
 		}
 
 		strcpy(CurrVal.StringValue, CurrNode->Value.Tok.Value.stringVal);
 		return CurrVal;
 
-	case NODE_BLOCK:
+	case NODE_BLOCK: {
+		Value ArrayValue;
+		bool IsArray = true;
+		ArrayValue.ArrayValuesSize = 1;
+		ArrayValue.ArrayValuesLastIndex = 0;
+		ArrayValue.ArrayValues = malloc(sizeof(Value) * ArrayValue.ArrayValuesSize);
+
+		if (ArrayValue.ArrayValues == NULL) {
+			PrintGrammarError((GrammarError) { CurrNode->Value.Tok.Line, CurrNode->Value.Tok.EndColumn, "Error in ExecuteNdoe: ArrayValues malloc failed." });
+			return (Value) { .Type = TYPE_VOID };
+		}
+
 		for (int i = 0; i < CurrNode->Value.Block.Index; i++)
 		{
-			ExecuteExpression(CurrNode->Value.Block.Expressions[i], Env);
+			if(CurrNode->Value.Block.Expressions[i]->Type == EXPRESSION_NODE && CurrNode->Value.Block.Expressions[i]->Value.NodeExpr->Type == NODE_RETURN) {
+				return ExecuteExpression(CurrNode->Value.Block.Expressions[i], Env);
+			}
+
+			Value Res = ExecuteExpression(CurrNode->Value.Block.Expressions[i], Env);
+
+			
+
+			ExecuteArrayAssignment(&Res, &ArrayValue, &IsArray);
+
+		}
+
+		if (IsArray) {
+			ArrayValue.Type = TYPE_ARRAY;
+			return ArrayValue;
 		}
 		return (Value) { .Type = TYPE_VOID }; //Maybe add a return for node block
-	
+	}
 	case NODE_CALL:
-		ExecuteFunctionCall(CurrNode->Value.FuncCall.CallNameTok.Value.stringVal, CurrNode->Value.FuncCall.Arguments, CurrNode->Value.FuncCall.ArgumentsNamesCount, Env);
-		return (Value) { .Type = TYPE_VOID };
+		return ExecuteFunctionCall(CurrNode->Value.FuncCall.CallNameTok.Value.stringVal, CurrNode->Value.FuncCall.Arguments, CurrNode->Value.FuncCall.ArgumentsNamesCount, Env);
+
+	case NODE_RETURN: {
+		Value ReturnValue;
+
+		ReturnValue.Type = TYPE_RETURN;
+		ReturnValue.ArrayValuesSize = CurrNode->Value.Return.ReturnNamesCount + 1;
+		ReturnValue.ArrayValuesLastIndex = CurrNode->Value.Return.ReturnNamesCount;
+		ReturnValue.ArrayValues = malloc(sizeof(Value) * ReturnValue.ArrayValuesSize);
+
+		if(ReturnValue.ArrayValues == NULL) {
+			PrintGrammarError((GrammarError) { CurrNode->Value.Tok.Line, CurrNode->Value.Tok.EndColumn, "Error in ExecuteNdoe: ReturnValue malloc failed." });
+			return (Value) { .Type = TYPE_VOID };
+		}
+
+		for (int i = 0; i < ReturnValue.ArrayValuesLastIndex; i++)
+		{
+			ReturnValue.ArrayValues[i] = ExecuteExpression((CurrNode->Value.Return.ReturnNames[i])->Value, Env);
+
+			
+			if (ReturnValue.ArrayValues[i].Type == TYPE_IDENTIFIER) {
+				ReturnValue.ArrayValues[i] = VarSearchEnvironment(ReturnValue.ArrayValues[i].StringValue, Env)->VariableValue;
+			}
+		}
+		return ReturnValue;
+	}
 	default:
 		PrintGrammarError((GrammarError) { CurrNode->Value.Tok.Line, CurrNode->Value.Tok.EndColumn, "Error in ExecuteNdoe: Unknown node." });
 		return (Value) { .Type = TYPE_VOID };
@@ -543,6 +642,7 @@ Value ExecuteTerm(Expression* Expr, VariableEnvironment* Env) {
 
 Value ExecuteBinary(Expression* Expr, VariableEnvironment* Env) {
 	BinaryExpression* CurrBinary = Expr->Value.BinExpr;
+
 	Value Left = ExecuteExpression(CurrBinary->Left, Env);
 	Value Right = ExecuteExpression(CurrBinary->Right, Env);
 
@@ -619,8 +719,36 @@ void ExecuteDeclaration(Expression* Expr, VariableEnvironment* Env) {
 
 void ExecuteAssignment(Expression* Expr, VariableEnvironment* Env) {
 	AssignmentExpression* CurrAssign = Expr->Value.AssignExpr;
+	if (CurrAssign->VarName->Type == EXPRESSION_NODE && CurrAssign->VarName->Value.NodeExpr->Type == NODE_RETURN) {
+		Node* CurrNode = CurrAssign->VarName->Value.NodeExpr;
+		int ReturnNamesCount = CurrNode->Value.Return.ReturnNamesCount;
+		AdvanceExpression();
+		Value AssignValue = ExecuteExpression(CurrAssign->Value, Env);
+
+		for (int i = 0; i < ReturnNamesCount; i++)
+		{
+			Variable* FoundVariable = VarSearchEnvironment(CurrNode->Value.Return.ReturnNames[i]->Value->Value.NodeExpr->Value.Tok.Value.stringVal, Env);
+			if (FoundVariable == NULL) {
+				PrintGrammarError((GrammarError) { 0, 0, "Error in ExecuteAssignment: Variable name doesnt exist." });
+				return;
+			}
+
+			if (FoundVariable->ForcedValueType != -1 && (FoundVariable->ForcedValueType != AssignValue.ArrayValues[i].Type)) {
+				if (!((FoundVariable->ForcedValueType == TYPE_INT && AssignValue.ArrayValues[i].Type == TYPE_DOUBLE) ||
+					(FoundVariable->ForcedValueType == TYPE_DOUBLE && AssignValue.ArrayValues[i].Type == TYPE_INT))) {
+					PrintGrammarError((GrammarError) { 0, 0, "Error in ExecuteAssignment: Variable value isn't coherent." });
+					return;
+				}
+			}
+
+			AssignVariableValue(FoundVariable, AssignValue.ArrayValues[i]);
+		}
+		return;
+	}
+
 	Value VarName = ExecuteExpression(CurrAssign->VarName, Env);
 	Value AssignValue = ExecuteExpression(CurrAssign->Value, Env);
+
 
 	Variable* FoundVariable = VarSearchEnvironment(VarName.StringValue, Env);
 	if (FoundVariable == NULL) {

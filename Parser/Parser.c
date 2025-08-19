@@ -5,6 +5,7 @@
 //Utility Variables
 TOKEN CurrToken;
 TOKEN NextToken;
+TOKEN TwoTokensAhead;
 bool ParserEndOfTokens = false;
 
 //========PARSER UTILITIES========
@@ -92,7 +93,15 @@ void Advance() {
 	if (TokensFirst->next == NULL) {
 		ParserEndOfTokens = true;
 	}
-	else NextToken = TokensFirst->next->Tok;
+	else {
+		NextToken = TokensFirst->next->Tok;
+
+		if (TokensFirst->next->next == NULL) {
+			TwoTokensAhead = (TOKEN){ 0 };
+			return;
+		}
+		else TwoTokensAhead = TokensFirst->next->next->Tok;
+	}
 }
 
 //========EXPRESSION INTIALIZATIONS HELPERS========
@@ -338,7 +347,7 @@ FunctionReturnInfo** MakeTypeList(int* ReturnTypesCount, int Index) {
 
 	if (CurrToken.OpKwValue == SEP_LPAREN) {
 		Advance();
-		while (CurrToken.Type != OPERATOR || CurrToken.OpKwValue == SEP_LBRACE) { //SEP_LBRACE is for array values immidiate insert. Could be done more elegantly.
+		while (CurrToken.Type != OPERATOR || CurrToken.OpKwValue == SEP_LBRACE || CurrToken.OpKwValue == SEP_LPAREN) { //SEP_LBRACE is for array values immidiate insert. Could be done more elegantly.
 			FunctionReturnInfo* CurrInfo = malloc(sizeof(FunctionReturnInfo));
 			if (CurrInfo == NULL) {
 				PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in FuncExpressionParse: Failed FunctionReturnInfo malloc." });
@@ -346,7 +355,15 @@ FunctionReturnInfo** MakeTypeList(int* ReturnTypesCount, int Index) {
 			}
 
 			CurrInfo->Type = GetReturnType();
-			CurrInfo->Value = NodeParse();
+
+			PrintToken(CurrToken);
+
+			if (CurrToken.Type == KEYWORD) {
+				CurrInfo->Value = NodeParse();
+			}
+			else {
+				CurrInfo->Value = ExpressionParse();
+			}
 
 			Info[Index] = CurrInfo;
 			Index++;
@@ -498,8 +515,59 @@ Expression* NodeParse() {
 	
 	case OPERATOR: {
 		if (CurrToken.OpKwValue == SEP_LPAREN) {
+			//handle return assignment
+			//after the if NEEDS TO BE moved in var assignment parse.
+			if (TwoTokensAhead.OpKwValue == SEP_COMMA) {
+				Expression* ReturnExpr = malloc(sizeof(Expression));
+				if( ReturnExpr == NULL) {
+					PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in NodeParse: Failed Expression malloc." });
+					return NULL;
+				}
+				ReturnExpr->Type = EXPRESSION_NODE;
+
+				Node* ReturnNode = malloc(sizeof(Node));
+				if( ReturnNode == NULL) {
+					PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in NodeParse: Failed Node malloc." });
+					return NULL;
+				}
+				ReturnNode->Type = NODE_RETURN;
+
+
+				NodeReturn Ret;
+				Ret.ReturnNamesCount = 1;
+
+				FunctionReturnInfo** Info = malloc(sizeof(FunctionReturnInfo*));
+				if (Info == NULL) {
+					PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in NodeParse: Failed FunctionReturnInfo malloc." });
+					return NULL;
+				}
+
+				Info = MakeTypeList(&Ret.ReturnNamesCount, 0);
+				Advance();
+				Ret.ReturnNames = Info;
+
+				ReturnNode->Value.Return = Ret;
+				ReturnExpr->Value.NodeExpr = ReturnNode;
+
+
+				Expression* VarName = ReturnExpr;
+				Advance();
+				Expression* Value = ExpressionParse();
+				if (Value == NULL) PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in VarAssignmentParse: Missing value expression" });
+				Advance();
+				return MakeVarAssignment(VarName, Value);
+			}
+			//END OF NEEDS TO BE REDONE
+			
+			
 			Advance();
+
+
 			Expression* Grouped = ExpressionParse();
+			
+			PrintToken(CurrToken);
+
+			
 
 			if (CurrToken.OpKwValue != SEP_RPAREN) {
 				PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in NodeParse: Missing closing parenthesis." });

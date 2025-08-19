@@ -6,6 +6,7 @@ typedef enum E_VariableType {
 	TYPE_STRING,
 	TYPE_BOOL,
 	TYPE_ARRAY,
+	TYPE_RETURN,
 	TYPE_STRUCT,
 	TYPE_VOID,
 	TYPE_IDENTIFIER
@@ -18,9 +19,11 @@ typedef struct S_Value {
 		double DoubleValue;
 		char* StringValue;
 		bool BoolValue;
-		struct Value* ArrayValues;
+		struct S_Value* ArrayValues; //ALSO FOR RETURNS
 		//Struct to be implemented
 	};
+	int ArrayValuesLastIndex;
+	int ArrayValuesSize;
 } Value;
 
 typedef struct S_Variable {
@@ -40,7 +43,6 @@ typedef struct S_VariableEnvironment {
 
 	struct VariableEnvironment* ParentEnvironment;
 } VariableEnvironment;
-
 
 typedef struct S_FunctionReturnType {
 	ValueType Type;

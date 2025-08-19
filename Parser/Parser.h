@@ -8,14 +8,14 @@
 typedef enum {
 	NODE_NUMBER, //done
 	NODE_STRING, //done
-	NODE_BOOL, //tbli
+	NODE_BOOL,
 	NODE_NULL, 
 	NODE_IDENTIFIER, //done
-	NODE_CALL,
+	NODE_CALL,	//mostly done (missing return)
 	NODE_INDEX_ACCESS,
 	NODE_GROUPING, //done
 	NODE_RETURN,
-	NODE_BLOCK
+	NODE_BLOCK	//done
 } NodeType;
 
 typedef enum {
@@ -81,7 +81,8 @@ typedef enum {
 //Structures and Unions
 
 //Nodes
-typedef struct Expression;
+typedef struct S_Expression Expression;
+
 
 typedef struct S_NodeCall {
 	TOKEN CallNameTok;
@@ -95,13 +96,13 @@ typedef struct S_NodeIndexAccess {
 } NodeIndexAccess;
 
 typedef struct S_NodeBlock {
-	struct Expression** Expressions;
+	struct S_Expression** Expressions;
 	int Index;
 	int Size;
 } NodeBlock;
 
 typedef struct S_NodeReturn {
-	struct FunctionReturnInfo** ReturnNames;
+	struct S_FunctionReturnInfo** ReturnNames;
 	int ReturnNamesCount;
 } NodeReturn;
 
@@ -111,7 +112,7 @@ typedef union {
 	NodeIndexAccess AtArrayIndex;
 	NodeBlock Block;
 	NodeReturn Return;
-	struct Expression* NodeGrouping;
+	struct S_Expression* NodeGrouping;
 } NodeValue;
 
 typedef struct S_Node {
@@ -147,8 +148,8 @@ typedef struct S_DeclExpr {
 } DeclarationExpression;
 
 typedef struct S_AssignmentExpression {
-	struct Expression* VarName;
-	struct Expression* Value;
+	struct S_Expression* VarName;
+	struct S_Expression* Value;
 } AssignmentExpression;
 
 typedef struct S_IfExpression {
@@ -165,7 +166,7 @@ typedef struct S_WhileExpression {
 typedef struct S_FunctionReturnInfo {
 	//Both for function return types, return itself and function calls.
 	FunctionType Type;
-	struct Expression* Value;
+	struct S_Expression* Value;
 } FunctionReturnInfo;
 
 typedef struct S_FunctionExpression {
