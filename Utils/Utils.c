@@ -126,6 +126,11 @@ void PrintGrammarWarning(GrammarError Error) {
     printf("\033[33mError at (R, L): %d,%d, INFO: %s\033[0m\n", Error.Line, Error.Column, Error.ErrorText);
 }
 
+void PrintInterpreterError(GrammarError Error) {
+    printf("\n\033[31mRuntime Error in line %d;\nINFO: %s\033[0m\n", Error.Line+1, Error.ErrorText);
+    exit(1);
+}
+
 void PrintToken(TOKEN Tok) {
     if (Tok.Type == OPERATOR) printf("TOKEN: (OPERATOR, %c, line: %d, column: %d)\n", InverseSeparators[Tok.OpKwValue], Tok.Line, Tok.EndColumn);
     else if (Tok.Type == KEYWORD) printf("TOKEN: (KEYWORD, %s, line: %d, column: %d)\n", Keywords[Tok.OpKwValue].Text, Tok.Line, Tok.EndColumn);

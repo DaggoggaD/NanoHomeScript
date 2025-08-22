@@ -133,6 +133,7 @@ int Read_User_String(char* StringBuffer, int MaxLen);
 void InstantiateSepTable();
 void PrintGrammarError(GrammarError Error);
 void PrintGrammarWarning(GrammarError Error);
+void PrintInterpreterError(GrammarError Error);
 void PrintToken(TOKEN Tok);
 
 bool CompareOperator(TOKEN Tok, int compare);

@@ -196,6 +196,7 @@ typedef union {
 typedef struct S_Expression {
 	ExpressionType Type;
 	ExpressionValue Value;
+	int Line;
 } Expression;
 
 typedef struct S_ExpressionList {

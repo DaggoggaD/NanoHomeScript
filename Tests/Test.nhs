@@ -9,7 +9,7 @@ var:string cnew;
 
 
 
-while i < 10 {
+while i < 10{
 	(cnew, returnDouble, returnInt) = myfunc(i, (1+2)*2, "test");
 	i = i + 1;
 }

@@ -356,8 +356,6 @@ FunctionReturnInfo** MakeTypeList(int* ReturnTypesCount, int Index) {
 
 			CurrInfo->Type = GetReturnType();
 
-			PrintToken(CurrToken);
-
 			if (CurrToken.Type == KEYWORD) {
 				CurrInfo->Value = NodeParse();
 			}
@@ -485,7 +483,7 @@ Expression* NodeParse() {
 			NodeCall Call = (NodeCall){ NameToken, ArgumentsList, RetNCount };
 			Advance();
 
-			return MakeCallExpression(Call, RetNCount); //TO BE LATER IMPLEMENTED
+			return MakeCallExpression(Call, RetNCount);
 		}
 		else if (CurrToken.OpKwValue == SEP_LBRACKET) {
 			Advance();
@@ -564,10 +562,6 @@ Expression* NodeParse() {
 
 
 			Expression* Grouped = ExpressionParse();
-			
-			PrintToken(CurrToken);
-
-			
 
 			if (CurrToken.OpKwValue != SEP_RPAREN) {
 				PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in NodeParse: Missing closing parenthesis." });
@@ -758,16 +752,30 @@ Expression* FuncExpressionParse() {
 }
 
 Expression* ExpressionParse() {
+	Expression* CurrExpr = malloc(sizeof(Expression));
+	if (CurrExpr == NULL) {
+			PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in ExpressionParse: Failed Expression malloc." });
+			return NULL;
+	}
+
 	if (CurrToken.Type == KEYWORD) {
 		switch (CurrToken.OpKwValue) {
 		case KW_VAR:
-			return DeclExprParse();
+			CurrExpr = DeclExprParse();
+			CurrExpr->Line = CurrToken.Line;
+			return CurrExpr;
 		case KW_IF:
-			return IfWhileExpressionParse(IF_FUNCTION);
+			CurrExpr = IfWhileExpressionParse(IF_FUNCTION);
+			CurrExpr->Line = CurrToken.Line;
+			return CurrExpr;
 		case KW_WHILE:
-			return IfWhileExpressionParse(WHILE_FUNCTION);
+			CurrExpr = IfWhileExpressionParse(WHILE_FUNCTION);
+			CurrExpr->Line = CurrToken.Line;
+			return CurrExpr;
 		case KW_FUNC:
-			return FuncExpressionParse();
+			CurrExpr = FuncExpressionParse();
+			CurrExpr->Line = CurrToken.Line;
+			return CurrExpr;
 		default:
 			break;
 		}
@@ -776,15 +784,21 @@ Expression* ExpressionParse() {
 		switch (NextToken.OpKwValue)
 		{
 		case SEP_EQUALS:
-			return VarAssignmentParse();
+			CurrExpr = VarAssignmentParse();
+			CurrExpr->Line = CurrToken.Line;
+			return CurrExpr;
 		case SEP_LBRACKET:
-			return VarAssignmentArrayParse(NodeParse());
+			CurrExpr = VarAssignmentArrayParse(NodeParse());
+			CurrExpr->Line = CurrToken.Line;
+			return CurrExpr;
 		default:
 			break;
 		}
 	}
 
-	return BinExprParse();
+	CurrExpr = BinExprParse();
+	CurrExpr->Line = CurrToken.Line;
+	return CurrExpr;
 }
 
 //========INITIALIZER========
@@ -796,7 +810,9 @@ void Parse() {
 	ExprLast = NULL;
 
 	while (ParserEndOfTokens == false) {
+		int ExprLine = CurrToken.Line;
 		Expression* CurrExpr = ExpressionParse();
+		CurrExpr->Line = ExprLine;
 
 		AddExpression(CurrExpr);
 
