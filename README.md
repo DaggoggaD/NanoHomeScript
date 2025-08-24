@@ -9,7 +9,7 @@ NanoHomeScript is a lightweight programming language designed specifically for *
 Its syntax is clean, human-readable, and tailored for writing automation scripts that connect smart devices, sensors, and custom alerts.
 
 ## ✨ Purpose
-While many automation platforms rely on JSON, YAML, or complex scripting APIs, [Language Name] offers:
+While many automation platforms rely on JSON, YAML, or complex scripting APIs, nanoHS offers:
 - **Readable, beginner-friendly syntax** — write automation rules without getting lost in brackets and indentation.
 - **Optional strong typing** — get the safety of strict types when you want them, or let the language handle casting automatically.
 - **Native event-driven structure** — respond instantly to triggers from your home devices or apps.
