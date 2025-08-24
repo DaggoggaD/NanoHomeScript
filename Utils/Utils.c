@@ -3,6 +3,7 @@
 //Used to check if string is a separator. Inverse is used to get the index from a certain char type
 SeparatorType Separators[MAX_CHARS];
 char InverseSeparators[MAX_CHARS];
+int InterpreterErrors = 0;
 
 //Keywords dict
 KeywordEntry Keywords[] = {
@@ -128,7 +129,7 @@ void PrintGrammarWarning(GrammarError Error) {
 
 void PrintInterpreterError(GrammarError Error) {
     printf("\n\033[31mRuntime Error in line %d;\nINFO: %s\033[0m\n", Error.Line+1, Error.ErrorText);
-    exit(1);
+	InterpreterErrors++;
 }
 
 void PrintToken(TOKEN Tok) {
@@ -149,7 +150,7 @@ int main() {
     Lexer();
     Parse();
     Execute();
-    printf("\033[0;32m\nProgram executed successfully!\033[0m");
+    printf("\033[0;32m\nProgram executed successfully! Errors: %d\033[0m", InterpreterErrors);
     char c = _getch();
     return 0;
 }

@@ -6,7 +6,7 @@ var i = 0;
 var returnInt = 0;
 var returnDouble = 0.0;
 var:string cnew;
-cnew = "bbb";
+cnew = "bbb" + 2;
 
 
 

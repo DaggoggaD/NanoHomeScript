@@ -67,6 +67,8 @@ typedef struct S_Function {
 } Function;
 
 //========FUNCTIONS========
+void FreeEnvironment(VariableEnvironment* Env, bool AlsoParents);
+
 void PrintVariableEnvironment(const VariableEnvironment* env);
 
 Value ExecuteExpression(Expression* Expr, VariableEnvironment* Env);
