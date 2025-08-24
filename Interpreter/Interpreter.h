@@ -1,5 +1,7 @@
 #include "../Parser/Parser.h"
 
+
+//========ENUMS========
 typedef enum E_VariableType {
 	TYPE_INT,
 	TYPE_DOUBLE,
@@ -12,6 +14,7 @@ typedef enum E_VariableType {
 	TYPE_IDENTIFIER
 } ValueType;
 
+//========STRUCTS========
 typedef struct S_Value {
 	ValueType Type;
 	union {
@@ -63,9 +66,9 @@ typedef struct S_Function {
 
 } Function;
 
+//========FUNCTIONS========
+void PrintVariableEnvironment(const VariableEnvironment* env);
 
 Value ExecuteExpression(Expression* Expr, VariableEnvironment* Env);
 
 void Execute();
-
-void PrintVariableEnvironment(const VariableEnvironment* env);

@@ -147,6 +147,8 @@ void PrintVariableEnvironment(const VariableEnvironment* env) {
 
 //========INTERPRETER UTILITIES========
 
+//Goes to the next expression in the global linked list.
+// If it's the last expression, sets EndOfExpressions to true.
 void AdvanceExpression() {
 	if (ExprFirst == NULL) {
 		EndOfExpressions = true;
@@ -156,6 +158,7 @@ void AdvanceExpression() {
 	ExprFirst = ExprFirst->Next;
 }
 
+//Handles binary operations between two strings.
 bool OperateStringValues(char* LValue, char* RValue, BinaryExpressionType Operator) {
 	if (LValue == NULL || RValue == NULL) return false;
 
@@ -177,6 +180,7 @@ bool OperateStringValues(char* LValue, char* RValue, BinaryExpressionType Operat
 	}
 }
 
+//Handles binary operations between two integers.
 int OperateIntValues(int LValue, int RValue, BinaryExpressionType Operator, bool* IsBool) {
 	if (Operator != BINARY_ADD && Operator != BINARY_SUB) *IsBool = true;
 	switch (Operator)
@@ -197,6 +201,7 @@ int OperateIntValues(int LValue, int RValue, BinaryExpressionType Operator, bool
 	}
 }
 
+//Handles binary operations between two doubles.
 double OperateDoubleValues(double LValue, double RValue, BinaryExpressionType Operator, bool* IsBool) {
 	if (Operator != BINARY_ADD && Operator != BINARY_SUB) *IsBool = true;
 	switch (Operator)
@@ -217,6 +222,8 @@ double OperateDoubleValues(double LValue, double RValue, BinaryExpressionType Op
 	}
 }
 
+//Creates an empty variable environment, mallocs variables and functions arrays.
+// Parent can be NULL.
 VariableEnvironment CreateEmptyEnvironment(VariableEnvironment *Parent) {
 	Variable* Vars = malloc(sizeof(Variable));
 	if(Vars == NULL) PrintInterpreterError((GrammarError) { CurrExpression->Line, 0, "Error in CreateEmptyEnv: Vars malloc failed." });
@@ -227,50 +234,11 @@ VariableEnvironment CreateEmptyEnvironment(VariableEnvironment *Parent) {
 	return (VariableEnvironment) {Vars, .VariablesSize = 1, .LastVarIndex = 0, Functions, .FunctionsSize = 1, .LastFuncIndex=0,Parent };
 }
 
-void AddVariableToEnvironment(Variable *Var, VariableEnvironment *Env) {
-	Env->Variables[Env->LastVarIndex] = *Var;
-	Env->LastVarIndex++;
-
-	//Add search parent to check if name already exists
-
-	if (Env->LastVarIndex >= Env->VariablesSize) {
-		Env->VariablesSize++;
-
-		Variable* Temp = realloc(Env->Variables, sizeof(Variable) * Env->VariablesSize);
-
-		if (Temp == NULL) {
-			PrintInterpreterError((GrammarError) { CurrExpression->Line, 0, "Error in AddVariableToEnvironment: Vars realloc failed." });
-			return;
-		}
-		Env->Variables = Temp;
-		if(Env->Variables == NULL) PrintInterpreterError((GrammarError) { CurrExpression->Line, 0, "Error in AddVariableToEnvironment: Vars malloc failed." });
-	}
-}
-
-void AddFunctionToEnvironment(Function *Func, VariableEnvironment *Env) {
-	Env->Functions[Env->LastFuncIndex] = *Func;
-	Env->LastFuncIndex++;
-
-	//Add search parent to check if name already exists
-
-	if (Env->LastFuncIndex >= Env->FunctionsSize) {
-		Env->FunctionsSize++;
-
-		Function* Temp = realloc(Env->Functions, sizeof(Function) * Env->FunctionsSize);
-		if (Temp == NULL) {
-			PrintInterpreterError((GrammarError) { CurrExpression->Line, 0, "Error in AddFunctionToEnvironment: Funcs realloc failed." });
-			return;
-		}
-
-		Env->Functions = Temp;
-		if (Env->Functions == NULL) PrintInterpreterError((GrammarError) { CurrExpression->Line, 0, "Error in AddFunctionToEnvironment: Functions malloc failed." });
-	}
-}
-
-Variable* VarSearchEnvironment(char* VarName, VariableEnvironment *Env){
+//Searches for a variable (by varname) in the environment and its parents. Returns NULL if not found.
+Variable* VarSearchEnvironment(char* VarName, VariableEnvironment* Env) {
 	VariableEnvironment* CurrEnv = Env;
 
-	while (CurrEnv!=NULL)
+	while (CurrEnv != NULL)
 	{
 		for (int i = 0; i < CurrEnv->LastVarIndex; i++)
 		{
@@ -280,10 +248,11 @@ Variable* VarSearchEnvironment(char* VarName, VariableEnvironment *Env){
 		}
 		CurrEnv = CurrEnv->ParentEnvironment;
 	}
-	
+
 	return NULL;
 }
 
+//Same as VarSearchEnvironment but for functions.
 Function* FunctionSearchEnvironment(char* FuncName, VariableEnvironment* Env) {
 	VariableEnvironment* CurrEnv = Env;
 
@@ -301,6 +270,57 @@ Function* FunctionSearchEnvironment(char* FuncName, VariableEnvironment* Env) {
 	return NULL;
 }
 
+//Adds a variable to the environment, reallocs if needed. (remember to increase space by (ex) 10, not just 1.
+//Still, for clarity, do it by 1 for now.
+void AddVariableToEnvironment(Variable *Var, VariableEnvironment *Env) {
+	if(VarSearchEnvironment(Var->VariableName, Env)!=NULL) {
+		PrintInterpreterError((GrammarError) { CurrExpression->Line, 0, "Error in AddVariableToEnvironment: Variable name already exists in this scope." });
+		return;
+	}
+	
+	Env->Variables[Env->LastVarIndex] = *Var;
+	Env->LastVarIndex++;
+
+	if (Env->LastVarIndex >= Env->VariablesSize) {
+		Env->VariablesSize++;
+
+		Variable* Temp = realloc(Env->Variables, sizeof(Variable) * Env->VariablesSize);
+
+		if (Temp == NULL) {
+			PrintInterpreterError((GrammarError) { CurrExpression->Line, 0, "Error in AddVariableToEnvironment: Vars realloc failed." });
+			return;
+		}
+		Env->Variables = Temp;
+		if(Env->Variables == NULL) PrintInterpreterError((GrammarError) { CurrExpression->Line, 0, "Error in AddVariableToEnvironment: Vars malloc failed." });
+	}
+}
+
+//Same as AddVariableToEnvironment but for functions.
+void AddFunctionToEnvironment(Function *Func, VariableEnvironment *Env) {
+	if(FunctionSearchEnvironment(Func->FunctionName, Env)!=NULL) {
+		PrintInterpreterError((GrammarError) { CurrExpression->Line, 0, "Error in AddFunctionToEnvironment: Function name already exists in this scope." });
+		return;
+	}
+
+	Env->Functions[Env->LastFuncIndex] = *Func;
+	Env->LastFuncIndex++;
+
+	if (Env->LastFuncIndex >= Env->FunctionsSize) {
+		Env->FunctionsSize++;
+
+		Function* Temp = realloc(Env->Functions, sizeof(Function) * Env->FunctionsSize);
+		if (Temp == NULL) {
+			PrintInterpreterError((GrammarError) { CurrExpression->Line, 0, "Error in AddFunctionToEnvironment: Funcs realloc failed." });
+			return;
+		}
+
+		Env->Functions = Temp;
+		if (Env->Functions == NULL) PrintInterpreterError((GrammarError) { CurrExpression->Line, 0, "Error in AddFunctionToEnvironment: Functions malloc failed." });
+	}
+}
+
+//For immediate type declaration (not auto), returns correct forced type.
+//Returns -1 if not recognized (but program will terminate before that).
 ValueType GetForcedVariableType(DeclarationVariableType Type) {
 
 	switch (Type)
@@ -320,6 +340,10 @@ ValueType GetForcedVariableType(DeclarationVariableType Type) {
 	}
 }
 
+
+
+//TODO: split the switchs into smaller functions for clarity.
+//Assigns a value to a variable, checking for type coherence.
 void AssignVariableValue(Variable* Var, Value Val) {
 	switch (Var->ForcedValueType)
 	{
@@ -366,23 +390,17 @@ void AssignVariableValue(Variable* Var, Value Val) {
 
 		strcpy(Var->VariableValue.StringValue, Val.StringValue);
 		break;
-	//case TYPE_BOOL: 
 
 	case TYPE_ARRAY:
 		Var->VariableValue.Type = TYPE_ARRAY;
-		if(Val.Type!=TYPE_ARRAY) {
+		if (Val.Type != TYPE_ARRAY) {
 			PrintInterpreterError((GrammarError) { CurrExpression->Line, 0, "Error in AssignVariableValue: Tried to assign non non array to array." });
 			return;
 		}
-		
-		/*Var->VariableValue.ArrayValues = malloc(sizeof(Value) * Val.ArrayValuesSize);
-		if (Var->VariableValue.ArrayValues == NULL) {
-			PrintInterpreterError((GrammarError) { CurrExpression->Line, 0, "Error in AssignVariableValue: ArrayValues malloc failed." });
-			return;
-		}*/
 
 		Var->VariableValue = Val;
 		break;
+	//case TYPE_BOOL: 
 
 	//case TYPE_STRUCT: 
 
@@ -394,6 +412,7 @@ void AssignVariableValue(Variable* Var, Value Val) {
 
 }
 
+//Returns the ValueType corresponding to the FunctionReturnInfo.
 ValueType GetFuncReturnType(FunctionReturnInfo* Info, Value* StructCaseName, VariableEnvironment* Env) {
 	switch (Info->Type) {
 	case FUNCTION_INT:    return TYPE_INT;
@@ -412,10 +431,11 @@ ValueType GetFuncReturnType(FunctionReturnInfo* Info, Value* StructCaseName, Var
 	default:
 		PrintInterpreterError((GrammarError) { CurrExpression->Line, 0, "Error in GetFuncReturnType: Type not recognized." });
 		return;
-
 	}
 }
 
+//If Val is an identifier, searches for it in the environment (and parents) and if found, sets OutVal to its value and returns true.
+//Used to dereference identifiers before operations.
 bool CheckForIdentifierVariable(Value* Val, VariableEnvironment* Env, Value* OutVal) {
 	if (Val->Type == TYPE_IDENTIFIER) {
 		Variable* Check = VarSearchEnvironment(Val->StringValue, Env);
@@ -431,6 +451,8 @@ bool CheckForIdentifierVariable(Value* Val, VariableEnvironment* Env, Value* Out
 
 //========EXECUTION METHODS========
 
+//Executes a function call, creating a new environment for it, assigning arguments and executing its block.
+//If a return is found it returns it.
 Value ExecuteFunctionCall(char* FuncName, FunctionReturnInfo** Args, int ArgsN, VariableEnvironment* Env) {
 	Function* Func = FunctionSearchEnvironment(FuncName, Env);
 	if (Func == NULL) {
@@ -438,6 +460,7 @@ Value ExecuteFunctionCall(char* FuncName, FunctionReturnInfo** Args, int ArgsN, 
 		return;
 	}
 
+	//Used to be sure that, if function is called multiple times, its environment is clean.
 	VariableEnvironment SonEnvironment = CreateEmptyEnvironment(&Func->FuncEnvironment);
 
 	if(ArgsN!=Func->ArgumentsN) PrintInterpreterError((GrammarError) { CurrExpression->Line, 0, "Error in ExecuteFunctionCall: Uncoherent number of argoments passed." });
@@ -448,12 +471,14 @@ Value ExecuteFunctionCall(char* FuncName, FunctionReturnInfo** Args, int ArgsN, 
 		Func->FuncEnvironment.Variables[i].VariableValue = CurrArgValue;
 	}
 
-
+	//Return method is handled inside ExecuteNode (Block type).
 	Value RetVal = ExecuteExpression(Func->ExpressionsBlock, &SonEnvironment);
 	if (RetVal.ArrayValuesLastIndex == 1) return RetVal.ArrayValues[0];
 	return RetVal;
 }
 
+//This method is called in ExecuteNode.
+//Assigns a whole block's values to an array.
 void ExecuteArrayAssignment(Value *Res, Value *ArrayValue, bool *IsArray) {
 	//Array assignment
 	if (Res->Type == TYPE_VOID) {
@@ -477,6 +502,8 @@ void ExecuteArrayAssignment(Value *Res, Value *ArrayValue, bool *IsArray) {
 	}
 }
 
+//TODO: Move long switch cases into separate functions for clarity.
+//Executes all node types. If the node expects a return value, it returns it.
 Value ExecuteNode(Expression* Expr, VariableEnvironment *Env){
 	Node* CurrNode = Expr->Value.NodeExpr;
 	Value CurrVal;
@@ -550,7 +577,7 @@ Value ExecuteNode(Expression* Expr, VariableEnvironment *Env){
 			ArrayValue.Type = TYPE_ARRAY;
 			return ArrayValue;
 		}
-		return (Value) { .Type = TYPE_VOID }; //Maybe add a return for node block
+		return (Value) { .Type = TYPE_VOID };
 	}
 	case NODE_CALL:
 		return ExecuteFunctionCall(CurrNode->Value.FuncCall.CallNameTok.Value.stringVal, CurrNode->Value.FuncCall.Arguments, CurrNode->Value.FuncCall.ArgumentsNamesCount, Env);
@@ -586,6 +613,7 @@ Value ExecuteNode(Expression* Expr, VariableEnvironment *Env){
 
 }
 
+//Executes Factors, inverting/negating values.
 Value ExecuteFactor(Expression* Expr, VariableEnvironment *Env) {
 	Factor* CurrFactor = Expr->Value.FactorExpr;
 	Value FactValue = ExecuteExpression(CurrFactor->Value, Env);
@@ -607,6 +635,7 @@ Value ExecuteFactor(Expression* Expr, VariableEnvironment *Env) {
 	return FactValue;
 }
 
+//Executes terms, handling * and / operations. Checks for type coherence (must be improved).
 Value ExecuteTerm(Expression* Expr, VariableEnvironment* Env) {
 	Term* CurrTerm = Expr->Value.TermExpr;
 	Value Left = ExecuteExpression(CurrTerm->Left, Env);
@@ -640,6 +669,7 @@ Value ExecuteTerm(Expression* Expr, VariableEnvironment* Env) {
 	return OutValue;
 }
 
+//Executes binary expressions, handling all binary operations. Checks for type coherence.
 Value ExecuteBinary(Expression* Expr, VariableEnvironment* Env) {
 	BinaryExpression* CurrBinary = Expr->Value.BinExpr;
 
@@ -683,6 +713,7 @@ Value ExecuteBinary(Expression* Expr, VariableEnvironment* Env) {
 	return OutValue;
 }
 
+//Executes variable declarations, adding them to the environment.
 void ExecuteDeclaration(Expression* Expr, VariableEnvironment* Env) {
 	DeclarationExpression* CurrDecl = Expr->Value.DeclExpr;
 	Variable *CurrVariable = malloc(sizeof(Variable));
@@ -698,8 +729,10 @@ void ExecuteDeclaration(Expression* Expr, VariableEnvironment* Env) {
 	}
 	strcpy(CurrVariable->VariableName, CurrDecl->VarName.Value.stringVal);
 	
-	//Check current and higher ranking environments for the same var name.
-	//Implement it later
+	if(VarSearchEnvironment(CurrVariable->VariableName, Env)!=NULL) {
+		PrintInterpreterError((GrammarError) { CurrExpression->Line, 0, "Error in ExecuteDeclaration: Var with same name already exists." });
+		return;
+	}
 
 	CurrVariable->ForcedValueType = GetForcedVariableType(CurrDecl->VarType);
 
@@ -717,6 +750,8 @@ void ExecuteDeclaration(Expression* Expr, VariableEnvironment* Env) {
 	//PrintVariableEnvironment(Env);
 }
 
+//Executes assignments, checking for type coherence and multiple assignments.
+//TODO: move return assignment to its own function.
 void ExecuteAssignment(Expression* Expr, VariableEnvironment* Env) {
 	AssignmentExpression* CurrAssign = Expr->Value.AssignExpr;
 	if (CurrAssign->VarName->Type == EXPRESSION_NODE && CurrAssign->VarName->Value.NodeExpr->Type == NODE_RETURN) {
@@ -769,6 +804,7 @@ void ExecuteAssignment(Expression* Expr, VariableEnvironment* Env) {
 	return;
 }
 
+//Executes if expressions. Also creates a new environment for the if block.
 void ExecuteIf(Expression* Expr, VariableEnvironment* Env) {
 	IfExpression* CurrIf = Expr->Value.IfExpr;
 	Value ConditionResult = ExecuteExpression(CurrIf->Condition, Env);
@@ -786,6 +822,7 @@ void ExecuteIf(Expression* Expr, VariableEnvironment* Env) {
 	ExecuteExpression(CurrIf->IfBlock, &IfEnv);
 }
 
+//Executes while expressions. Also creates a new environment for the while block.
 void ExecuteWhile(Expression* Expr, VariableEnvironment* Env) {
 	IfExpression* CurrWhile = Expr->Value.WhileExpr;
 	Value ConditionResult = ExecuteExpression(CurrWhile->Condition, Env);
@@ -808,6 +845,7 @@ void ExecuteWhile(Expression* Expr, VariableEnvironment* Env) {
 	}
 }
 
+//Executes function expressions (declarations), creating a new function and adding it to the environment.
 void ExecuteFunctionExpression(Expression* Expr, VariableEnvironment* Env) {
 	FunctionExpression* CurrFuncExpr = Expr->Value.FuncExpr;
 	Function* Func = malloc(sizeof(Function));
@@ -847,6 +885,7 @@ void ExecuteFunctionExpression(Expression* Expr, VariableEnvironment* Env) {
 	AddFunctionToEnvironment(Func, Env);
 }
 
+//Main execution method. Calls the right execution method based on expression type.
 Value ExecuteExpression(Expression* Expr, VariableEnvironment* Env) {
 	if(Expr==NULL)return (Value) { TYPE_VOID, NULL };
 
@@ -892,6 +931,7 @@ Value ExecuteExpression(Expression* Expr, VariableEnvironment* Env) {
 	return (Value){TYPE_VOID, NULL};
 }
 
+//Main execution loop. Advances through expressions, executing them one by one.
 void Execute() {
 	printf("\n");
 	AdvanceExpression();
