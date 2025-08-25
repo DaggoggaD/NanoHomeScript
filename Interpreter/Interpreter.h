@@ -1,3 +1,4 @@
+#pragma once
 #include "../Parser/Parser.h"
 
 
@@ -66,10 +67,13 @@ typedef struct S_Function {
 
 } Function;
 
-//========FUNCTIONS========
-void FreeEnvironment(VariableEnvironment* Env, bool AlsoParents);
+//========GLOBAL VARIABLES========
 
-void PrintVariableEnvironment(const VariableEnvironment* env);
+extern Expression* CurrExpression;
+extern bool EndOfExpressions;
+extern VariableEnvironment GlobalEnvironment;
+
+//========FUNCTIONS========
 
 Value ExecuteExpression(Expression* Expr, VariableEnvironment* Env);
 

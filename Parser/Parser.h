@@ -1,4 +1,4 @@
- #pragma once
+#pragma once
 #include "..\Utils\Utils.h"
 #define IF_FUNCTION 0
 #define WHILE_FUNCTION 1

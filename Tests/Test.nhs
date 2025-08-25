@@ -1,4 +1,4 @@
-func (string,double) myfunc(var:int a, var:double b, var:string c){
+func (string,double,int) myfunc(var:int a, var:double b, var:string c){
 	return ("aaa",1.2, 1);
 };
 
@@ -6,9 +6,7 @@ var i = 0;
 var returnInt = 0;
 var returnDouble = 0.0;
 var:string cnew;
-cnew = "bbb" + 2;
-
-
+cnew = "bbb";
 
 while i < 10{
 	(cnew, returnDouble, returnInt) = myfunc(i, (1+2)*2, "test");
