@@ -36,8 +36,16 @@ Value ExecuteFunctionCall(char* FuncName, FunctionReturnInfo** Args, int ArgsN, 
 	for (int i = 0; i < ArgsN; i++)
 	{
 		Value CurrArgValue = ExecuteExpression(Args[i]->Value, Env);
+
+		if (CurrArgValue.Type == TYPE_IDENTIFIER) {
+			Variable* Var = VarSearchEnvironment(CurrArgValue.StringValue, Env);
+			if (Var != NULL) CurrArgValue = Var->VariableValue;
+		}
+
+
 		Func->FuncEnvironment.Variables[i].VariableValue = CurrArgValue;
 	}
+
 
 	//Return method is handled inside ExecuteNode (Block type).
 	Value RetVal = ExecuteExpression(Func->ExpressionsBlock, &SonEnvironment);
@@ -396,6 +404,11 @@ void ExecuteAssignment(Expression* Expr, VariableEnvironment* Env) {
 
 	Value VarName = ExecuteExpression(CurrAssign->VarName, Env);
 	Value AssignValue = ExecuteExpression(CurrAssign->Value, Env);
+
+	if (AssignValue.Type == TYPE_IDENTIFIER) {
+		Variable* Var = VarSearchEnvironment(AssignValue.StringValue, Env);
+		if (Var != NULL) AssignValue = Var->VariableValue;
+	}
 
 	Variable* FoundVariable = VarSearchEnvironment(VarName.StringValue, Env);
 	if (FoundVariable == NULL) {
