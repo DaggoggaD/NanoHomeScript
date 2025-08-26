@@ -1,13 +1,24 @@
+func void StringDisplayer(){
+	var StartString = "Starting";
+	StartString = StartString + " and ending!";
+	print("The resulting string is: ", StartString, "'");
+}
+
 func (int) Sum(var:int a, var:int b){
 	var summed = a + b;
 	return summed;
 }
 
-func (int) Fib(var:int N) {
+func (int, string) Fib(var:int N) {
 	var i = 1;
 	var curr = 1;
 	var prev = 0;
 	var temp = 0;
+
+	if N < 0{
+		return (-1, "Error: Negative input");
+	}
+
 
 	while i<N {
 		temp = curr;
@@ -17,12 +28,14 @@ func (int) Fib(var:int N) {
 		i = i + 1;
 	}
 
-	return curr;
+	return (curr, "Complete!");
 }
 
-var result = Fib(40);
-print("Result: ", result);
+var result = 0;
+var completion = "";
+(result, completion)= Fib(12);
 
-var StartString = "Starting";
-StartString = StartString + " and ending!";
-print("The resulting string is: ", StartString, "'");
+print("Fibonacci result: ", result)
+print("with message: ", completion);
+
+StringDisplayer();

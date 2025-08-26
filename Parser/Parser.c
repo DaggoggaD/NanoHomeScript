@@ -347,7 +347,7 @@ FunctionReturnInfo** MakeTypeList(int* ReturnTypesCount, int Index) {
 
 	if (CurrToken.OpKwValue == SEP_LPAREN) {
 		Advance();
-		while (CurrToken.Type != OPERATOR || CurrToken.OpKwValue == SEP_LBRACE || CurrToken.OpKwValue == SEP_LPAREN) { //SEP_LBRACE is for array values immidiate insert. Could be done more elegantly.
+		while (CurrToken.Type != OPERATOR || CurrToken.OpKwValue == SEP_OP_SUB ||CurrToken.OpKwValue == SEP_LBRACE || CurrToken.OpKwValue == SEP_LPAREN) { //SEP_LBRACE is for array values immidiate insert. Could be done more elegantly.
 			FunctionReturnInfo* CurrInfo = malloc(sizeof(FunctionReturnInfo));
 			if (CurrInfo == NULL) {
 				PrintGrammarError((GrammarError) { CurrToken.Line, CurrToken.EndColumn, "Error in FuncExpressionParse: Failed FunctionReturnInfo malloc." });

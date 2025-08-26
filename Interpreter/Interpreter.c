@@ -15,7 +15,6 @@ VariableEnvironment GlobalEnvironment;
 //========EXECUTION METHODS========
 
 void ExecutePrintCall(FunctionReturnInfo** ToPrint, int PrintN, VariableEnvironment* Env) {
-
 	for (int i = 0; i < PrintN; i++)
 	{
 		Value CurrArgValue = ExecuteExpression(ToPrint[i]->Value, Env);
@@ -24,7 +23,6 @@ void ExecutePrintCall(FunctionReturnInfo** ToPrint, int PrintN, VariableEnvironm
 			Variable* Var = VarSearchEnvironment(CurrArgValue.StringValue, Env);
 			if (Var != NULL) CurrArgValue = Var->VariableValue;
 		}
-
 		PrintOutValue(CurrArgValue);
 	}
 	printf("\n");
@@ -81,7 +79,8 @@ Value ExecuteFunctionCall(char* FuncName, FunctionReturnInfo** Args, int ArgsN, 
 //Assigns a whole block's values to an array.
 void ExecuteArrayAssignment(Value *Res, Value *ArrayValue, bool *IsArray) {
 	//Array assignment
-	if (Res->Type == TYPE_VOID) {
+	
+	if (Res->Type == TYPE_VOID || Res->Type == TYPE_RETURN) {
 		*IsArray = false;
 	}
 	else if (*IsArray==true) {
@@ -120,11 +119,30 @@ Value ExecuteBlockHelper(Node* CurrNode, VariableEnvironment* Env) {
 
 	for (int i = 0; i < CurrNode->Value.Block.Index; i++)
 	{
+		//This for is quite confusing. Must change it later.
+		//For now: 
+		// If the expression is a return node, it executes it (so it gets it's value) and returns it.
+		// This, though, means that if the return node is inside an if (or something else) inside a function,
+		// it won't return aswell in the function (wich means that the if will terminate after the return, but the function will continue)
+		// To fix this, i added the other if (Res.Type == TYPE_RETURN) below.
+		// This way, since an if is an expression on it's own, if the if "returns" a value (in form of a return) it will return once again.
+		// This is shitty, for now it works, but it MUST BE REDONE later.
+		// For the other two lines:
+		//  Value Res = ... executes the expression and stores it in Res, normally.
+		//  ExecuteArrayAssignment(...) checks if Res is eligible to be an array value 
+		//  (wich means it's a TYPE_VOID or a TYPE_RETURN, wich all ifs, whiles, functions etc are)
+
+
 		if (CurrNode->Value.Block.Expressions[i]->Type == EXPRESSION_NODE && CurrNode->Value.Block.Expressions[i]->Value.NodeExpr->Type == NODE_RETURN) {
 			return ExecuteExpression(CurrNode->Value.Block.Expressions[i], Env);
 		}
 
 		Value Res = ExecuteExpression(CurrNode->Value.Block.Expressions[i], Env);
+
+		if (Res.Type == TYPE_RETURN) {
+			return Res;
+		}
+
 		ExecuteArrayAssignment(&Res, &ArrayValue, &IsArray);
 	}
 
@@ -158,6 +176,7 @@ Value ExecuteReturnHelper(Node* CurrNode, VariableEnvironment* Env) {
 			ReturnValue.ArrayValues[i] = VarSearchEnvironment(ReturnValue.ArrayValues[i].StringValue, Env)->VariableValue;
 		}
 	}
+
 	return ReturnValue;
 }
 
@@ -405,7 +424,6 @@ void ExecuteDeclaration(Expression* Expr, VariableEnvironment* Env) {
 void ExecuteReturnAssignment(AssignmentExpression* CurrAssign, VariableEnvironment* Env) {
 	Node* CurrNode = CurrAssign->VarName->Value.NodeExpr;
 	int ReturnNamesCount = CurrNode->Value.Return.ReturnNamesCount;
-	AdvanceExpression();
 	Value AssignValue = ExecuteExpression(CurrAssign->Value, Env);
 
 	for (int i = 0; i < ReturnNamesCount; i++)
@@ -468,7 +486,7 @@ void ExecuteAssignment(Expression* Expr, VariableEnvironment* Env) {
 }
 
 //Executes if expressions. Also creates a new environment for the if block.
-void ExecuteIf(Expression* Expr, VariableEnvironment* Env) {
+Value ExecuteIf(Expression* Expr, VariableEnvironment* Env) {
 	IfExpression* CurrIf = Expr->Value.IfExpr;
 	Value ConditionResult = ExecuteExpression(CurrIf->Condition, Env);
 
@@ -479,15 +497,20 @@ void ExecuteIf(Expression* Expr, VariableEnvironment* Env) {
 		return;
 	}
 	
-	if (ConditionResult.BoolValue == false) return;//Eventually check Else
+	if (ConditionResult.BoolValue == false) return (Value) { TYPE_VOID, NULL };//Eventually check Else
 
 	VariableEnvironment IfEnv = CreateEmptyEnvironment(Env);
 
-	ExecuteExpression(CurrIf->IfBlock, &IfEnv);
+	Value Val = ExecuteExpression(CurrIf->IfBlock, &IfEnv);
+	if(Val.Type == TYPE_RETURN)
+	{
+		return Val;
+	}
+	return (Value) { TYPE_VOID, NULL };
 }
 
 //Executes while expressions. Also creates a new environment for the while block.
-void ExecuteWhile(Expression* Expr, VariableEnvironment* Env) {
+Value ExecuteWhile(Expression* Expr, VariableEnvironment* Env) {
 	IfExpression* CurrWhile = Expr->Value.WhileExpr;
 	Value ConditionResult = ExecuteExpression(CurrWhile->Condition, Env);
 
@@ -498,16 +521,26 @@ void ExecuteWhile(Expression* Expr, VariableEnvironment* Env) {
 		return;
 	}
 
-	if (ConditionResult.BoolValue == false) return;//Eventually check Else
+	if (ConditionResult.BoolValue == false) return (Value) { TYPE_VOID, NULL };
 
 	VariableEnvironment WhileEnv = CreateEmptyEnvironment(Env);
+	Value LastVal = (Value){ TYPE_VOID, NULL };
 
 	while (ConditionResult.BoolValue == true) {
-		ExecuteExpression(CurrWhile->IfBlock, &WhileEnv);
+		LastVal = ExecuteExpression(CurrWhile->IfBlock, &WhileEnv);
+
 		ConditionResult = ExecuteExpression(CurrWhile->Condition, Env);
 		//PrintVariableEnvironment(&WhileEnv); //This, for debug must be placed here: everytime it get's reset.
 		WhileEnv = CreateEmptyEnvironment(Env);
+
+		if (LastVal.Type == TYPE_RETURN)
+		{
+			return LastVal;
+		}
+		LastVal = (Value){ TYPE_VOID, NULL };
 	}
+
+	return LastVal;
 }
 
 //Executes function expressions (declarations), creating a new function and adding it to the environment.
@@ -556,6 +589,7 @@ void ExecuteFunctionExpression(Expression* Expr, VariableEnvironment* Env) {
 //Main execution method. Calls the right execution method based on expression type.
 Value ExecuteExpression(Expression* Expr, VariableEnvironment* Env) {
 	if(Expr==NULL)return (Value) { TYPE_VOID, NULL };
+	
 
 	switch (Expr->Type)
 	{
@@ -581,12 +615,10 @@ Value ExecuteExpression(Expression* Expr, VariableEnvironment* Env) {
 		break;
 	case EXPRESSION_IF:
 		//printf("Executing If->");
-		ExecuteIf(Expr, Env);
-		break;
+		return ExecuteIf(Expr, Env);
 	case EXPRESSION_WHILE:
 		//printf("Executing While->");
-		ExecuteWhile(Expr, Env);
-		break;
+		return ExecuteWhile(Expr, Env);
 	case EXPRESSION_FUNC:
 		//printf("Executing Function Declaration->");
 		ExecuteFunctionExpression(Expr, Env);

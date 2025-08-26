@@ -51,6 +51,8 @@ void PrintValue(Value v) {
 }
 
 void PrintOutValue(Value v) {
+	
+
 	switch (v.Type) {
 	case TYPE_INT:
 		printf("%d", v.IntValue);
