@@ -816,8 +816,10 @@ void Parse() {
 
 		AddExpression(CurrExpr);
 
+		/*
 		print_expression(CurrExpr);
 		printf("\n");
+		*/
 
 		if (CurrToken.OpKwValue == SEP_SEMICOLON) {
 			Advance();

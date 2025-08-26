@@ -5,6 +5,8 @@ void AdvanceExpression();
 
 bool OperateStringValues(char* LValue, char* RValue, BinaryExpressionType Operator);
 
+Value AddStringValues(BinaryExpressionType Type, Value* Left, Value* Right);
+
 int OperateIntValues(int LValue, int RValue, BinaryExpressionType Operator, bool* IsBool);
 
 double OperateDoubleValues(double LValue, double RValue, BinaryExpressionType Operator, bool* IsBool);

@@ -50,6 +50,53 @@ void PrintValue(Value v) {
 	}
 }
 
+void PrintOutValue(Value v) {
+	switch (v.Type) {
+	case TYPE_INT:
+		printf("%d", v.IntValue);
+		break;
+
+	case TYPE_DOUBLE:
+		printf("%f", v.DoubleValue);
+		break;
+
+	case TYPE_STRING:
+	case TYPE_IDENTIFIER:
+		printf("%s", v.StringValue ? v.StringValue : "(null)");
+		break;
+
+	case TYPE_BOOL:
+		printf(v.BoolValue ? "true" : "false");
+		break;
+
+	case TYPE_ARRAY:
+	case TYPE_RETURN:
+		printf("[");
+		if (v.ArrayValues) {
+
+			for (int i = 0; i < v.ArrayValuesLastIndex; i++)
+			{
+				PrintValue(v.ArrayValues[i]);
+				if (i < v.ArrayValuesLastIndex - 1) printf(",");
+			}
+		}
+		printf("]");
+		break;
+
+	case TYPE_STRUCT:
+		printf("{ /* struct values here */ }");
+		break;
+
+	case TYPE_VOID:
+		printf("void");
+		break;
+
+	default:
+		printf("<unknown type>");
+		break;
+	}
+}
+
 const char* ValueTypeToString(ValueType type) {
 	switch (type) {
 	case TYPE_INT:    return "int";

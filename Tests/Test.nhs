@@ -4,7 +4,7 @@ func (int) Sum(var:int a, var:int b){
 }
 
 func (int) Fib(var:int N) {
-	var i = 0;
+	var i = 1;
 	var curr = 1;
 	var prev = 0;
 	var temp = 0;
@@ -20,4 +20,9 @@ func (int) Fib(var:int N) {
 	return curr;
 }
 
-var result = Fib(20);
+var result = Fib(40);
+print("Result: ", result);
+
+var StartString = "Starting";
+StartString = StartString + " and ending!";
+print("The resulting string is: ", StartString, "'");

@@ -1,7 +1,5 @@
 #include "FreeInterpreter.h"
 
-//========INTERPRETER UTILITIES========
-
 //Frees a value.
 //NOTE: it does NOT free the Value itself, just its contents.
 void FreeValue(Value* Val) {

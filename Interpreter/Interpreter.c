@@ -14,10 +14,34 @@ VariableEnvironment GlobalEnvironment;
 
 //========EXECUTION METHODS========
 
+void ExecutePrintCall(FunctionReturnInfo** ToPrint, int PrintN, VariableEnvironment* Env) {
+
+	for (int i = 0; i < PrintN; i++)
+	{
+		Value CurrArgValue = ExecuteExpression(ToPrint[i]->Value, Env);
+
+		if (CurrArgValue.Type == TYPE_IDENTIFIER) {
+			Variable* Var = VarSearchEnvironment(CurrArgValue.StringValue, Env);
+			if (Var != NULL) CurrArgValue = Var->VariableValue;
+		}
+
+		PrintOutValue(CurrArgValue);
+	}
+	printf("\n");
+}
+
 //Executes a function call, creating a new environment for it, assigning arguments and executing its block.
 //If a return is found it returns it.
 Value ExecuteFunctionCall(char* FuncName, FunctionReturnInfo** Args, int ArgsN, VariableEnvironment* Env) {
 	Function* Func = FunctionSearchEnvironment(FuncName, Env);
+
+	//Will be moved in a better place, with a switch and all built-in functions.
+	//For debug purposes, here is fine.
+	if (strcmp(FuncName, "print") == 0) {
+		ExecutePrintCall(Args, ArgsN, Env);
+		return (Value) { .Type = TYPE_VOID, NULL };
+	}
+
 	if (Func == NULL) {
 		PrintInterpreterError((GrammarError) { CurrExpression->Line, 0, "Error in ExecuteFunctionCall: No such named function." });
 		FreeAll(&GlobalEnvironment);
@@ -46,7 +70,7 @@ Value ExecuteFunctionCall(char* FuncName, FunctionReturnInfo** Args, int ArgsN, 
 		Func->FuncEnvironment.Variables[i].VariableValue = CurrArgValue;
 	}
 
-
+	
 	//Return method is handled inside ExecuteNode (Block type).
 	Value RetVal = ExecuteExpression(Func->ExpressionsBlock, &SonEnvironment);
 	if (RetVal.ArrayValuesLastIndex == 1) return RetVal.ArrayValues[0];
@@ -286,13 +310,25 @@ Value ExecuteBinary(Expression* Expr, VariableEnvironment* Env) {
 	Value Left = ExecuteExpression(CurrBinary->Left, Env);
 	Value Right = ExecuteExpression(CurrBinary->Right, Env);
 
-	CheckForIdentifierVariable(&Left, Env, &Left);
-	CheckForIdentifierVariable(&Right, Env, &Right);
+	if (Left.Type == TYPE_IDENTIFIER) {
+		Variable* Var = VarSearchEnvironment(Left.StringValue, Env);
+		if (Var != NULL) Left = Var->VariableValue;
+	}
+
+	if (Right.Type == TYPE_IDENTIFIER) {
+		Variable* Var = VarSearchEnvironment(Right.StringValue, Env);
+		if (Var != NULL) Right = Var->VariableValue;
+	}
 
 	Value OutValue;
 
 	if ((Left.Type != TYPE_INT && Left.Type != TYPE_DOUBLE) || (Right.Type != TYPE_INT && Right.Type != TYPE_DOUBLE)) {
 		if (Left.Type == TYPE_STRING && Right.Type == TYPE_STRING) {
+
+			if (CurrBinary->Type == BINARY_ADD) {
+				return AddStringValues(CurrBinary->Type, &Left, &Right);
+			}
+
 			OutValue.Type = TYPE_BOOL;
 			OutValue.BoolValue = OperateStringValues(Left.StringValue, Right.StringValue, CurrBinary->Type);
 			return OutValue;
@@ -565,19 +601,14 @@ Value ExecuteExpression(Expression* Expr, VariableEnvironment* Env) {
 
 //Main execution loop. Advances through expressions, executing them one by one.
 void Execute() {
-	printf("\n");
+	
 	AdvanceExpression();
 	GlobalEnvironment = CreateEmptyEnvironment(NULL);
 
 	while (EndOfExpressions == false) {
 		Value RetV = ExecuteExpression(CurrExpression, &GlobalEnvironment);
-		printf("\n");
-		if (RetV.Type != TYPE_VOID) {
-			PrintValue(RetV);
-			printf("\n");
-		}
 		AdvanceExpression();
 	}
 
-	PrintVariableEnvironment(&GlobalEnvironment);
+	//PrintVariableEnvironment(&GlobalEnvironment);
 }

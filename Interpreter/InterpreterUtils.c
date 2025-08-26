@@ -20,6 +20,7 @@ bool OperateStringValues(char* LValue, char* RValue, BinaryExpressionType Operat
 	int Compared = strcmp(LValue, RValue);
 
 	switch (Operator) {
+	//case BINARY_ADD:      return true; //Not implemented
 	case BINARY_LESS:     return Compared < 0;
 	case BINARY_GREATER:  return Compared > 0;
 	case BINARY_LOE:      return Compared <= 0;
@@ -33,6 +34,22 @@ bool OperateStringValues(char* LValue, char* RValue, BinaryExpressionType Operat
 		FreeAll(&GlobalEnvironment);
 		return false;
 	}
+}
+
+Value AddStringValues(BinaryExpressionType Type, Value* Left, Value* Right) {
+	Value OutValue;
+
+	OutValue.Type = TYPE_STRING;
+	OutValue.StringValue = malloc(sizeof(char) * (strlen(Left->StringValue) + strlen(Right->StringValue) + 1));
+	if (OutValue.StringValue == NULL) {
+		PrintInterpreterError((GrammarError) { CurrExpression->Line, 0, "Error in ExecuteBinary: StringValue malloc failed." });
+		FreeAll(&GlobalEnvironment);
+		return (Value) { .Type = TYPE_VOID, NULL };
+	}
+
+	strcat(OutValue.StringValue, Left->StringValue);
+	strcat(OutValue.StringValue, Right->StringValue);
+	return OutValue;
 }
 
 //Handles binary operations between two integers.
@@ -101,6 +118,7 @@ VariableEnvironment CreateEmptyEnvironment(VariableEnvironment* Parent) {
 }
 
 //Searches for a variable (by varname) in the environment and its parents. Returns NULL if not found.
+//TODO: Implement divide and conquer for big environments (needs sorting first).
 Variable* VarSearchEnvironment(char* VarName, VariableEnvironment* Env) {
 	VariableEnvironment* CurrEnv = Env;
 
@@ -119,6 +137,7 @@ Variable* VarSearchEnvironment(char* VarName, VariableEnvironment* Env) {
 }
 
 //Same as VarSearchEnvironment but for functions.
+//TODO: Implement divide and conquer for big environments (needs sorting first).
 Function* FunctionSearchEnvironment(char* FuncName, VariableEnvironment* Env) {
 	VariableEnvironment* CurrEnv = Env;
 

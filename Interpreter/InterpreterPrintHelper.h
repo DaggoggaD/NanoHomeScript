@@ -3,6 +3,8 @@
 
 void PrintValue(Value v);
 
+void PrintOutValue(Value v);
+
 const char* ValueTypeToString(ValueType type);
 
 void PrintVariable(const Variable* var);
