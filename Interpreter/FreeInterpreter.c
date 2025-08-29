@@ -4,8 +4,7 @@
 //NOTE: it does NOT free the Value itself, just its contents.
 void FreeValue(Value* Val) {
 	if (Val->StringValue != NULL) {
-		free(Val->StringValue);
-		Val->StringValue = NULL;
+		Val->StringValue = '\0';
 	}
 	else if (Val->ArrayValues != NULL) {
 		for (int i = 0; i < Val->ArrayValuesLastIndex; i++)
@@ -29,8 +28,7 @@ void FreeReturnType(FunctionReturnType* RetType) {
 //NOTE: it does NOT free the Variable itself, just its contents.
 void FreeVariable(Variable* Var) {
 	if (Var->VariableName != NULL) {
-		free(Var->VariableName);
-		Var->VariableName = NULL;
+		Var->VariableName = '\0';
 	}
 	FreeValue(&(Var->VariableValue));
 	return;

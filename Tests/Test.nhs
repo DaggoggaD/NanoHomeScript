@@ -1,9 +1,3 @@
-func void StringDisplayer(){
-	var StartString = "Starting";
-	StartString = StartString + " and ending!";
-	print("The resulting string is: ", StartString, "'");
-}
-
 func (int) Sum(var:int a, var:int b){
 	var summed = a + b;
 	return summed;
@@ -31,11 +25,5 @@ func (int, string) Fib(var:int N) {
 	return (curr, "Complete!");
 }
 
-var result = 0;
-var completion = "";
-(result, completion)= Fib(12);
-
-print("Fibonacci result: ", result)
-print("with message: ", completion);
-
-StringDisplayer();
+var:float x = Fib(100000000);
+print(x);

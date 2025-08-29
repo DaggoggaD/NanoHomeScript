@@ -33,6 +33,7 @@ BinaryExpressionType GetBinaryExpressionType(TOKEN* Tok) {
 		case SEP_OP_SUB: return BINARY_SUB;
 		case SEP_OP_LESS: return BINARY_LESS;
 		case SEP_OP_GREAT: return BINARY_GREATER;
+		case SEP_OP_MOD: return BINARY_MOD;
 		default: break;
 		}
 	}

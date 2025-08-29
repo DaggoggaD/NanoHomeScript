@@ -53,6 +53,7 @@ typedef enum {
 	BINARY_NOE,
 	BINARY_AND,
 	BINARY_OR,
+	BINARY_MOD,
 	BINARY_NONE
 } BinaryExpressionType;
 

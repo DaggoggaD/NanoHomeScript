@@ -39,7 +39,7 @@ Value ExecuteFunctionCall(char* FuncName, FunctionReturnInfo** Args, int ArgsN, 
 		ExecutePrintCall(Args, ArgsN, Env);
 		return (Value) { .Type = TYPE_VOID, NULL };
 	}
-
+	
 	if (Func == NULL) {
 		PrintInterpreterError((GrammarError) { CurrExpression->Line, 0, "Error in ExecuteFunctionCall: No such named function." });
 		FreeAll(&GlobalEnvironment);
@@ -71,6 +71,7 @@ Value ExecuteFunctionCall(char* FuncName, FunctionReturnInfo** Args, int ArgsN, 
 	
 	//Return method is handled inside ExecuteNode (Block type).
 	Value RetVal = ExecuteExpression(Func->ExpressionsBlock, &SonEnvironment);
+	FreeEnvironment(&SonEnvironment, false);
 	if (RetVal.ArrayValuesLastIndex == 1) return RetVal.ArrayValues[0];
 	return RetVal;
 }
@@ -134,12 +135,14 @@ Value ExecuteBlockHelper(Node* CurrNode, VariableEnvironment* Env) {
 
 
 		if (CurrNode->Value.Block.Expressions[i]->Type == EXPRESSION_NODE && CurrNode->Value.Block.Expressions[i]->Value.NodeExpr->Type == NODE_RETURN) {
+			free(ArrayValue.ArrayValues);
 			return ExecuteExpression(CurrNode->Value.Block.Expressions[i], Env);
 		}
 
 		Value Res = ExecuteExpression(CurrNode->Value.Block.Expressions[i], Env);
 
 		if (Res.Type == TYPE_RETURN) {
+			free(ArrayValue.ArrayValues);
 			return Res;
 		}
 
@@ -150,6 +153,7 @@ Value ExecuteBlockHelper(Node* CurrNode, VariableEnvironment* Env) {
 		ArrayValue.Type = TYPE_ARRAY;
 		return ArrayValue;
 	}
+	free(ArrayValue.ArrayValues);
 	return (Value) { .Type = TYPE_VOID, NULL };
 }
 
@@ -198,14 +202,8 @@ Value ExecuteNumberHelper(Node* CurrNode) {
 Value ExecuteStringHelper(Node* CurrNode) {
 	Value CurrVal;
 	CurrVal.Type = TYPE_STRING;
-	CurrVal.StringValue = malloc(sizeof(char) * (strlen(CurrNode->Value.Tok.Value.stringVal) + 1));
-	if (CurrVal.StringValue == NULL) {
-		PrintGrammarWarning((GrammarError) { CurrNode->Value.Tok.Line, CurrNode->Value.Tok.EndColumn, "Error in ExecuteNdoe: CurrVal malloc failed." });
-		FreeAll(&GlobalEnvironment);
-		return (Value) { .Type = TYPE_VOID, NULL };
-	}
+	CurrVal.StringValue = CurrNode->Value.Tok.Value.stringVal;
 
-	strcpy(CurrVal.StringValue, CurrNode->Value.Tok.Value.stringVal);
 	return CurrVal;
 }
 
@@ -213,14 +211,7 @@ Value ExecuteStringHelper(Node* CurrNode) {
 Value ExecuteIdentifierHelper(Node* CurrNode) {
 	Value CurrVal;
 	CurrVal.Type = TYPE_IDENTIFIER;
-	CurrVal.StringValue = malloc(sizeof(char) * (strlen(CurrNode->Value.Tok.Value.stringVal) + 1));
-	if (CurrVal.StringValue == NULL) {
-		PrintGrammarWarning((GrammarError) { CurrNode->Value.Tok.Line, CurrNode->Value.Tok.EndColumn, "Error in ExecuteNdoe: CurrVal malloc failed." });
-		FreeAll(&GlobalEnvironment);
-		return (Value) { .Type = TYPE_VOID, NULL };
-	}
-
-	strcpy(CurrVal.StringValue, CurrNode->Value.Tok.Value.stringVal);
+	CurrVal.StringValue = CurrNode->Value.Tok.Value.stringVal;
 	return CurrVal;
 }
 
@@ -292,6 +283,17 @@ Value ExecuteTerm(Expression* Expr, VariableEnvironment* Env) {
 	Term* CurrTerm = Expr->Value.TermExpr;
 	Value Left = ExecuteExpression(CurrTerm->Left, Env);
 	Value Right = ExecuteExpression(CurrTerm->Right, Env);
+
+	if (Left.Type == TYPE_IDENTIFIER) {
+		Variable* Var = VarSearchEnvironment(Left.StringValue, Env);
+		if (Var != NULL) Left = Var->VariableValue;
+	}
+
+	if (Right.Type == TYPE_IDENTIFIER) {
+		Variable* Var = VarSearchEnvironment(Right.StringValue, Env);
+		if (Var != NULL) Right = Var->VariableValue;
+	}
+
 	Value OutValue;
 
 	if (CurrTerm->Type == TERM_NONE) return Left;
@@ -324,6 +326,7 @@ Value ExecuteTerm(Expression* Expr, VariableEnvironment* Env) {
 
 //Executes binary expressions, handling all binary operations. Checks for type coherence.
 Value ExecuteBinary(Expression* Expr, VariableEnvironment* Env) {
+
 	BinaryExpression* CurrBinary = Expr->Value.BinExpr;
 
 	Value Left = ExecuteExpression(CurrBinary->Left, Env);
@@ -353,6 +356,8 @@ Value ExecuteBinary(Expression* Expr, VariableEnvironment* Env) {
 			return OutValue;
 		}
 
+
+		printf("Left Type: %d, Right Type: %d\n", Left.Type, Right.Type);
 		PrintInterpreterError((GrammarError) { CurrExpression->Line, 0, "Error in ExecuteBinary: Binary operation on non binary-accepted values." });
 		FreeAll(&GlobalEnvironment);
 		return (Value) { .Type = TYPE_VOID, NULL };
@@ -380,6 +385,12 @@ Value ExecuteBinary(Expression* Expr, VariableEnvironment* Env) {
 }
 
 //Executes variable declarations, adding them to the environment.
+//
+// 
+// IMPORTANT!!!!
+// 
+// To fix memleak here, change Variable* Variables in variable enviroment struct to Variable**
+// I'll do it later :|
 void ExecuteDeclaration(Expression* Expr, VariableEnvironment* Env) {
 	DeclarationExpression* CurrDecl = Expr->Value.DeclExpr;
 	Variable *CurrVariable = malloc(sizeof(Variable));
@@ -389,13 +400,7 @@ void ExecuteDeclaration(Expression* Expr, VariableEnvironment* Env) {
 		return;
 	}
 
-	CurrVariable->VariableName = malloc(sizeof(char) * (strlen(CurrDecl->VarName.Value.stringVal)+1));
-	if (CurrVariable->VariableName == NULL) {
-		PrintInterpreterError((GrammarError) { CurrExpression->Line, 0, "Error in ExecuteDeclaration: VarName malloc failed." });
-		FreeAll(&GlobalEnvironment);
-		return;
-	}
-	strcpy(CurrVariable->VariableName, CurrDecl->VarName.Value.stringVal);
+	CurrVariable->VariableName = CurrDecl->VarName.Value.stringVal;
 	
 	if(VarSearchEnvironment(CurrVariable->VariableName, Env)!=NULL) {
 		PrintInterpreterError((GrammarError) { CurrExpression->Line, 0, "Error in ExecuteDeclaration: Var with same name already exists." });
@@ -446,6 +451,7 @@ void ExecuteReturnAssignment(AssignmentExpression* CurrAssign, VariableEnvironme
 
 		AssignVariableValue(FoundVariable, AssignValue.ArrayValues[i]);
 	}
+	free(AssignValue.ArrayValues);
 }
 
 //Executes assignments, checking for type coherence and multiple assignments.
@@ -502,6 +508,9 @@ Value ExecuteIf(Expression* Expr, VariableEnvironment* Env) {
 	VariableEnvironment IfEnv = CreateEmptyEnvironment(Env);
 
 	Value Val = ExecuteExpression(CurrIf->IfBlock, &IfEnv);
+
+	FreeEnvironment(&IfEnv, false);
+
 	if(Val.Type == TYPE_RETURN)
 	{
 		return Val;
@@ -531,6 +540,7 @@ Value ExecuteWhile(Expression* Expr, VariableEnvironment* Env) {
 
 		ConditionResult = ExecuteExpression(CurrWhile->Condition, Env);
 		//PrintVariableEnvironment(&WhileEnv); //This, for debug must be placed here: everytime it get's reset.
+		FreeEnvironment(&WhileEnv, false);
 		WhileEnv = CreateEmptyEnvironment(Env);
 
 		if (LastVal.Type == TYPE_RETURN)

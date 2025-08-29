@@ -47,14 +47,14 @@ Value AddStringValues(BinaryExpressionType Type, Value* Left, Value* Right) {
 		return (Value) { .Type = TYPE_VOID, NULL };
 	}
 
-	strcat(OutValue.StringValue, Left->StringValue);
+	strcpy(OutValue.StringValue, Left->StringValue);
 	strcat(OutValue.StringValue, Right->StringValue);
 	return OutValue;
 }
 
 //Handles binary operations between two integers.
 int OperateIntValues(int LValue, int RValue, BinaryExpressionType Operator, bool* IsBool) {
-	if (Operator != BINARY_ADD && Operator != BINARY_SUB) *IsBool = true;
+	if (Operator != BINARY_ADD && Operator != BINARY_SUB && Operator != BINARY_MOD) *IsBool = true;
 	switch (Operator)
 	{
 	case BINARY_ADD: return LValue + RValue;
@@ -67,6 +67,7 @@ int OperateIntValues(int LValue, int RValue, BinaryExpressionType Operator, bool
 	case BINARY_NOE: return LValue != RValue;
 	case BINARY_AND: return LValue && RValue;
 	case BINARY_OR: return LValue || RValue;
+	case BINARY_MOD: return LValue % RValue;
 	default:
 		PrintInterpreterError((GrammarError) { CurrExpression->Line, 0, "Error in ExecuteNdoe: Unknown node." });
 		FreeAll(&GlobalEnvironment);

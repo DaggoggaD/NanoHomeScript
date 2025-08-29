@@ -88,6 +88,7 @@ void InstantiateSepTable() {
     Separators['<'] = SEP_OP_LESS;
     Separators['>'] = SEP_OP_GREAT;
     Separators['!'] = SEP_OP_NOT;
+	Separators['%'] = SEP_OP_MOD;
 }
 
 //Inverse action
@@ -115,6 +116,7 @@ void InstantiateInverseSepTable() {
     InverseSeparators[SEP_OP_SUB] = '-';
     InverseSeparators[SEP_OP_LESS] = '<';
     InverseSeparators[SEP_OP_GREAT] = '>';
+	InverseSeparators[SEP_OP_MOD] = '%';
 }
 
 //Simply prints the error

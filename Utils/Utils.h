@@ -73,6 +73,7 @@ typedef enum {
     SEP_OP_LESS,   // <
     SEP_OP_GREAT,  // >
     SEP_OP_NOT,    // !
+	SEP_OP_MOD,    // %
 
     SEP_UNKNOWN    //Nan
 } SeparatorType;
